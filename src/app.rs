@@ -18,9 +18,19 @@ use tracing::Level;
 use crate::{
     config::{db::DbPool, environment::Environment},
     module::admin::route::router as admin_router,
+    module::asset::route::{
+        admin_router as admin_asset_router, public_router as public_asset_router,
+        user_router as user_asset_router,
+    },
     module::auth::route::router as auth_router,
     module::compliance::route::{
         admin_router as admin_compliance_router, public_router as public_compliance_router,
+    },
+    module::oracle::route::{
+        admin_router as admin_oracle_router, public_router as public_oracle_router,
+    },
+    module::treasury::route::{
+        admin_router as admin_treasury_router, public_router as public_treasury_router,
     },
 };
 
@@ -38,10 +48,18 @@ pub fn build_router(state: AppState) -> Result<Router> {
         .route("/health", get(health_check))
         .nest(
             "/admin",
-            admin_router(state.clone()).merge(admin_compliance_router(state.clone())),
+            admin_router(state.clone())
+                .merge(admin_compliance_router(state.clone()))
+                .merge(admin_asset_router(state.clone()))
+                .merge(admin_treasury_router(state.clone()))
+                .merge(admin_oracle_router(state.clone())),
         )
         .nest("/auth", auth_router(state.clone()))
         .merge(public_compliance_router())
+        .merge(public_asset_router())
+        .merge(user_asset_router(state.clone()))
+        .merge(public_treasury_router())
+        .merge(public_oracle_router())
         .with_state(state)
         .layer(cors_layer)
         .layer(
@@ -69,7 +87,13 @@ fn build_cors_layer(env: &Environment) -> Result<CorsLayer> {
     Ok(CorsLayer::new()
         .allow_origin(AllowOrigin::list(allowed_origins))
         .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([header::ACCEPT, header::AUTHORIZATION, header::CONTENT_TYPE]))
 }
 

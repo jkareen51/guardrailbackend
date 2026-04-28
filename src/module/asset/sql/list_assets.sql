@@ -1,0 +1,27 @@
+SELECT
+    asset_address,
+    proposal_id,
+    asset_type_id,
+    name,
+    symbol,
+    max_supply,
+    total_supply,
+    asset_state,
+    asset_state_label,
+    controllable,
+    self_service_purchase_enabled,
+    price_per_token,
+    redemption_price_per_token,
+    treasury_address,
+    compliance_registry_address,
+    payment_token_address,
+    metadata_hash,
+    holder_count,
+    total_pending_redemptions,
+    created_by_user_id,
+    updated_by_user_id,
+    last_tx_hash,
+    created_at,
+    updated_at
+FROM assets
+ORDER BY created_at ASC

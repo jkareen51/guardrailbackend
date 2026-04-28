@@ -26,7 +26,12 @@ pub struct Environment {
     pub monad_rpc_url: String,
     pub monad_rpc_urls: Vec<String>,
     pub monad_chain_id: i64,
+    pub access_control_address: String,
+    pub asset_factory_address: String,
     pub compliance_registry_address: String,
+    pub treasury_address: String,
+    pub oracle_data_bridge_address: String,
+    pub payment_token_address: String,
     pub aa_bundler_rpc_url: String,
     pub aa_entry_point_address: String,
     pub aa_simple_account_factory_address: String,
@@ -65,7 +70,15 @@ impl Environment {
             monad_rpc_url,
             monad_rpc_urls,
             monad_chain_id: parse_env("MONAD_CHAIN_ID", 4202)?,
+            access_control_address: required_address_env("ACCESS_CONTROL_ADDRESS")?,
+            asset_factory_address: required_address_env("ASSET_FACTORY_ADDRESS")?,
             compliance_registry_address: required_address_env("COMPLIANCE_REGISTRY_ADDRESS")?,
+            treasury_address: required_address_env("TREASURY_ADDRESS")?,
+            oracle_data_bridge_address: required_address_env("ORACLE_DATA_BRIDGE_ADDRESS")?,
+            payment_token_address: required_any_address_env(&[
+                "PAYMENT_TOKEN_ADDRESS",
+                "MOCK_USDC_ADDRESS",
+            ])?,
             aa_bundler_rpc_url: required_env("AA_BUNDLER_RPC_URL")?,
             aa_entry_point_address: required_address_env("AA_ENTRY_POINT_ADDRESS")?,
             aa_simple_account_factory_address: required_address_env(
@@ -184,6 +197,20 @@ fn required_address_env(key: &str) -> Result<String> {
     let raw = required_env(key)?;
 
     normalize_address(&raw).map_err(|error| anyhow!("invalid value for env var `{key}`: {error}"))
+}
+
+fn required_any_address_env(keys: &[&str]) -> Result<String> {
+    for key in keys {
+        if let Some(raw) = optional_env(key) {
+            return normalize_address(&raw)
+                .map_err(|error| anyhow!("invalid value for env var `{key}`: {error}"));
+        }
+    }
+
+    Err(anyhow!(
+        "missing required env var, expected one of: {}",
+        keys.join(", ")
+    ))
 }
 
 fn normalize_address(raw: &str) -> Result<String> {

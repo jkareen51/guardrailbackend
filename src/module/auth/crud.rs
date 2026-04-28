@@ -4,8 +4,8 @@ use crate::{
     config::db::DbPool,
     module::auth::error::AuthError,
     module::auth::model::{
-        NewWalletRecord, UserProfileRecord, UserRecord, VerifiedGoogleToken, WalletChallengeRecord,
-        WalletRecord,
+        NewWalletRecord, SmartAccountSignerRecord, UserProfileRecord, UserRecord,
+        VerifiedGoogleToken, WalletChallengeRecord, WalletRecord,
     },
 };
 
@@ -15,6 +15,27 @@ mod sql {
         include_str!("sql/find_user_by_wallet_address.sql");
     pub const GET_USER_BY_ID: &str = include_str!("sql/get_user_by_id.sql");
     pub const GET_WALLET_FOR_USER: &str = include_str!("sql/get_wallet_for_user.sql");
+    pub const GET_SMART_ACCOUNT_SIGNER_FOR_USER: &str = r#"
+        SELECT
+            wallet_address,
+            owner_address,
+            owner_provider,
+            owner_ref,
+            factory_address,
+            entry_point_address,
+            owner_encrypted_private_key,
+            owner_encryption_nonce
+        FROM wallet_accounts
+        WHERE user_id = $1
+          AND account_kind = 'smart_account'
+          AND owner_address IS NOT NULL
+          AND owner_provider IS NOT NULL
+          AND owner_ref IS NOT NULL
+          AND factory_address IS NOT NULL
+          AND entry_point_address IS NOT NULL
+          AND owner_encrypted_private_key IS NOT NULL
+          AND owner_encryption_nonce IS NOT NULL
+    "#;
     pub const GET_USER_PROFILE_BY_ID: &str = r#"
         SELECT
             u.id,
@@ -61,6 +82,17 @@ pub async fn get_wallet_for_user(
     user_id: Uuid,
 ) -> Result<Option<WalletRecord>, AuthError> {
     sqlx::query_as::<_, WalletRecord>(sql::GET_WALLET_FOR_USER)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(AuthError::from)
+}
+
+pub async fn get_smart_account_signer_for_user(
+    pool: &DbPool,
+    user_id: Uuid,
+) -> Result<Option<SmartAccountSignerRecord>, AuthError> {
+    sqlx::query_as::<_, SmartAccountSignerRecord>(sql::GET_SMART_ACCOUNT_SIGNER_FOR_USER)
         .bind(user_id)
         .fetch_optional(pool)
         .await

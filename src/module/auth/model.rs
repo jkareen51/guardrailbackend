@@ -31,6 +31,18 @@ pub struct WalletRecord {
 }
 
 #[derive(Debug, Clone, FromRow)]
+pub struct SmartAccountSignerRecord {
+    pub wallet_address: String,
+    pub owner_address: String,
+    pub owner_provider: String,
+    pub owner_ref: String,
+    pub factory_address: String,
+    pub entry_point_address: String,
+    pub owner_encrypted_private_key: String,
+    pub owner_encryption_nonce: String,
+}
+
+#[derive(Debug, Clone, FromRow)]
 pub struct UserProfileRecord {
     pub id: Uuid,
     pub email: Option<String>,
