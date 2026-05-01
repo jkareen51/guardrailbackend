@@ -9,6 +9,7 @@ pub mod faucet;
 pub mod gasless;
 pub mod jwt;
 pub mod liquidity;
+pub mod market;
 pub mod oracle;
 pub mod rpc;
 pub mod treasury;
