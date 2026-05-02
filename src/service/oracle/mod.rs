@@ -50,12 +50,11 @@ pub async fn get_trusted_oracle(
     let oracle_address = parse_address(oracle_address)?;
     let oracle_address_string = format_address(oracle_address);
 
-    match sync_trusted_oracle(state, oracle_address, None, None).await {
-        Ok(record) => Ok(OracleTrustedOracleResponse::from(record)),
-        Err(error) => match crud::get_trusted_oracle(&state.db, &oracle_address_string).await? {
-            Some(record) => Ok(OracleTrustedOracleResponse::from(record)),
-            None => Err(error),
-        },
+    match crud::get_trusted_oracle(&state.db, &oracle_address_string).await? {
+        Some(record) => Ok(OracleTrustedOracleResponse::from(record)),
+        None => Ok(OracleTrustedOracleResponse::from(
+            sync_trusted_oracle(state, oracle_address, None, None).await?,
+        )),
     }
 }
 
@@ -96,12 +95,11 @@ pub async fn get_valuation(
     let asset_address = parse_address(asset_address)?;
     let asset_address_string = format_address(asset_address);
 
-    match sync_valuation(state, asset_address, None, None).await {
-        Ok(record) => Ok(OracleValuationResponse::from(record)),
-        Err(error) => match crud::get_valuation(&state.db, &asset_address_string).await? {
-            Some(record) => Ok(OracleValuationResponse::from(record)),
-            None => Err(error),
-        },
+    match crud::get_valuation(&state.db, &asset_address_string).await? {
+        Some(record) => Ok(OracleValuationResponse::from(record)),
+        None => Ok(OracleValuationResponse::from(
+            sync_valuation(state, asset_address, None, None).await?,
+        )),
     }
 }
 
@@ -188,16 +186,11 @@ pub async fn get_document(
     let asset_address_string = format_address(asset_address);
     let document_type_string = format_h256(document_type);
 
-    match sync_document(state, asset_address, document_type, None, None).await {
-        Ok(record) => Ok(OracleDocumentResponse::from(record)),
-        Err(error) => {
-            match crud::get_document(&state.db, &asset_address_string, &document_type_string)
-                .await?
-            {
-                Some(record) => Ok(OracleDocumentResponse::from(record)),
-                None => Err(error),
-            }
-        }
+    match crud::get_document(&state.db, &asset_address_string, &document_type_string).await? {
+        Some(record) => Ok(OracleDocumentResponse::from(record)),
+        None => Ok(OracleDocumentResponse::from(
+            sync_document(state, asset_address, document_type, None, None).await?,
+        )),
     }
 }
 
@@ -332,16 +325,25 @@ async fn sync_document(
         Some((user_id, tx_hash)) => (Some(user_id), Some(tx_hash)),
         None => (None, None),
     };
-    let reference_id = write_values
-        .map(|(_, reference_id)| reference_id)
-        .unwrap_or_default();
+    let asset_address_string = format_address(asset_address);
+    let document_type_string = format_h256(document_type);
+    let document_hash_string = format_h256(document_hash);
+    let reference_id = match write_values {
+        Some((_, reference_id)) => format_h256(reference_id),
+        None => match crud::get_document(&state.db, &asset_address_string, &document_type_string)
+            .await?
+        {
+            Some(record) => record.reference_id,
+            None => format_h256(H256::zero()),
+        },
+    };
 
     crud::upsert_document(
         &state.db,
-        &format_address(asset_address),
-        &format_h256(document_type),
-        &format_h256(document_hash),
-        &format_h256(reference_id),
+        &asset_address_string,
+        &document_type_string,
+        &document_hash_string,
+        &reference_id,
         updated_by_user_id,
         last_tx_hash,
     )

@@ -134,6 +134,16 @@ pub async fn get_factory_status(state: &AppState) -> Result<AssetFactoryStatusRe
 }
 
 pub async fn list_asset_types(state: &AppState) -> Result<AssetTypeListResponse, AuthError> {
+    let asset_types = crud::list_asset_types(&state.db).await?;
+    if !asset_types.is_empty() {
+        return Ok(AssetTypeListResponse {
+            asset_types: asset_types
+                .into_iter()
+                .map(AssetTypeResponse::from)
+                .collect(),
+        });
+    }
+
     match read_registered_asset_type_ids(&state.env).await {
         Ok(asset_type_ids) => {
             let mut asset_types = Vec::with_capacity(asset_type_ids.len());
@@ -144,11 +154,7 @@ pub async fn list_asset_types(state: &AppState) -> Result<AssetTypeListResponse,
             Ok(AssetTypeListResponse { asset_types })
         }
         Err(_error) => Ok(AssetTypeListResponse {
-            asset_types: crud::list_asset_types(&state.db)
-                .await?
-                .into_iter()
-                .map(AssetTypeResponse::from)
-                .collect(),
+            asset_types: Vec::new(),
         }),
     }
 }
@@ -158,13 +164,14 @@ pub async fn get_asset_type(
     asset_type_id: &str,
 ) -> Result<AssetTypeResponse, AuthError> {
     let asset_type_id = parse_bytes32_input(asset_type_id, "asset_type_id")?;
+    let asset_type_id_hex = format_h256(asset_type_id);
 
-    match sync_asset_type(state, asset_type_id, None, None).await {
-        Ok(record) => Ok(AssetTypeResponse::from(record)),
-        Err(error) => match crud::get_asset_type(&state.db, &format_h256(asset_type_id)).await? {
-            Some(record) => Ok(AssetTypeResponse::from(record)),
-            None => Err(error),
-        },
+    match crud::get_asset_type(&state.db, &asset_type_id_hex).await? {
+        Some(record) => Ok(AssetTypeResponse::from(record)),
+        None => {
+            let record = sync_asset_type(state, asset_type_id, None, None).await?;
+            Ok(AssetTypeResponse::from(record))
+        }
     }
 }
 
@@ -354,16 +361,7 @@ pub async fn list_assets(
     query: ListAssetsQuery,
 ) -> Result<AssetListResponse, AuthError> {
     let normalized = normalize_list_assets_query(query)?;
-
-    match read_all_asset_addresses(&state.env).await {
-        Ok(asset_addresses) => {
-            for asset_address in asset_addresses {
-                let _ = sync_asset(state, asset_address, None, None, None).await;
-            }
-            list_assets_from_db(state, &normalized).await
-        }
-        Err(_error) => list_assets_from_db(state, &normalized).await,
-    }
+    list_assets_from_db(state, &normalized).await
 }
 
 pub async fn list_assets_by_type(
@@ -381,15 +379,7 @@ pub async fn list_assets_by_type(
         offset: 0,
     };
 
-    match read_asset_addresses_by_type(&state.env, asset_type_id).await {
-        Ok(asset_addresses) => {
-            for asset_address in asset_addresses {
-                let _ = sync_asset(state, asset_address, None, None, None).await;
-            }
-            list_assets_from_db(state, &normalized).await
-        }
-        Err(_error) => list_assets_from_db(state, &normalized).await,
-    }
+    list_assets_from_db(state, &normalized).await
 }
 
 pub async fn get_asset_by_proposal(
@@ -397,48 +387,31 @@ pub async fn get_asset_by_proposal(
     proposal_id: &str,
 ) -> Result<AssetResponse, AuthError> {
     let proposal_id_u256 = parse_u256(proposal_id, "proposal_id")?;
-
-    match read_factory_asset_address(&state.env, proposal_id_u256).await {
-        Ok(asset_address) if asset_address != Address::zero() => Ok(AssetResponse::from(
-            sync_asset(state, asset_address, None, None, None).await?,
-        )),
-        Ok(_) => {
-            match crud::get_asset_by_proposal(&state.db, state.env.monad_chain_id, proposal_id)
-                .await?
-            {
-                Some(record) => Ok(AssetResponse::from(record)),
-                None => Err(AuthError::not_found("asset not found for proposal")),
-            }
-        }
-        Err(error) => {
-            match crud::get_asset_by_proposal(&state.db, state.env.monad_chain_id, proposal_id)
-                .await?
-            {
-                Some(record) => Ok(AssetResponse::from(record)),
-                None => Err(AuthError::internal(
-                    "failed to read asset by proposal from factory",
-                    error,
-                )),
-            }
-        }
+    if let Some(record) =
+        crud::get_asset_by_proposal(&state.db, state.env.monad_chain_id, proposal_id).await?
+    {
+        return Ok(AssetResponse::from(record));
     }
+
+    let asset_address = read_factory_asset_address(&state.env, proposal_id_u256).await?;
+    if asset_address == Address::zero() {
+        return Err(AuthError::not_found("asset not found for proposal"));
+    }
+
+    Ok(AssetResponse::from(
+        sync_asset(state, asset_address, None, None, None).await?,
+    ))
 }
 
 pub async fn get_asset(state: &AppState, asset_address: &str) -> Result<AssetResponse, AuthError> {
     let asset_address = parse_address(asset_address)?;
+    let asset_address_string = format_address(asset_address);
 
-    match sync_asset(state, asset_address, None, None, None).await {
-        Ok(record) => Ok(AssetResponse::from(record)),
-        Err(error) => match crud::get_asset(
-            &state.db,
-            state.env.monad_chain_id,
-            &format_address(asset_address),
-        )
-        .await?
-        {
-            Some(record) => Ok(AssetResponse::from(record)),
-            None => Err(error),
-        },
+    match crud::get_asset(&state.db, state.env.monad_chain_id, &asset_address_string).await? {
+        Some(record) => Ok(AssetResponse::from(record)),
+        None => Ok(AssetResponse::from(
+            sync_asset(state, asset_address, None, None, None).await?,
+        )),
     }
 }
 
@@ -455,13 +428,7 @@ pub async fn get_asset_by_slug(state: &AppState, slug: &str) -> Result<AssetResp
     let slug = normalize_slug(slug, "asset slug")?;
 
     match crud::get_asset_by_slug(&state.db, state.env.monad_chain_id, &slug).await? {
-        Some(record) => {
-            let asset_address = parse_address(&record.asset_address)?;
-            match sync_asset(state, asset_address, None, None, None).await {
-                Ok(record) => Ok(AssetResponse::from(record)),
-                Err(_) => Ok(AssetResponse::from(record)),
-            }
-        }
+        Some(record) => Ok(AssetResponse::from(record)),
         None => Err(AuthError::not_found("asset not found")),
     }
 }
@@ -1578,35 +1545,6 @@ async fn read_factory_asset_address(
         .call()
         .await
         .map_err(|error| AuthError::internal("failed to call getAssetAddress", error))
-}
-
-async fn read_all_asset_addresses(env: &Environment) -> Result<Vec<Address>, AuthError> {
-    let contract = read_factory_contract(env).await.map_err(|error| {
-        AuthError::internal("failed to build asset factory read contract", error)
-    })?;
-
-    contract
-        .method::<_, Vec<Address>>("getAllAssets", ())
-        .map_err(|error| AuthError::internal("failed to build getAllAssets call", error))?
-        .call()
-        .await
-        .map_err(|error| AuthError::internal("failed to call getAllAssets", error))
-}
-
-async fn read_asset_addresses_by_type(
-    env: &Environment,
-    asset_type_id: H256,
-) -> Result<Vec<Address>, AuthError> {
-    let contract = read_factory_contract(env).await.map_err(|error| {
-        AuthError::internal("failed to build asset factory read contract", error)
-    })?;
-
-    contract
-        .method::<_, Vec<Address>>("getAssetsByType", asset_type_id)
-        .map_err(|error| AuthError::internal("failed to build getAssetsByType call", error))?
-        .call()
-        .await
-        .map_err(|error| AuthError::internal("failed to call getAssetsByType", error))
 }
 
 async fn read_asset_snapshot_from_chain(

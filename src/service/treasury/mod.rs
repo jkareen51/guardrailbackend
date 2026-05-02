@@ -41,14 +41,11 @@ use self::abi::treasury_abi;
 pub mod abi;
 
 pub async fn get_treasury_status(state: &AppState) -> Result<TreasuryStatusResponse, AuthError> {
-    match sync_treasury_status(state, None, None).await {
-        Ok(record) => Ok(TreasuryStatusResponse::from(record)),
-        Err(error) => {
-            match crud::get_treasury_status(&state.db, &state.env.treasury_address).await? {
-                Some(record) => Ok(TreasuryStatusResponse::from(record)),
-                None => Err(error),
-            }
-        }
+    match crud::get_treasury_status(&state.db, &state.env.treasury_address).await? {
+        Some(record) => Ok(TreasuryStatusResponse::from(record)),
+        None => Ok(TreasuryStatusResponse::from(
+            sync_treasury_status(state, None, None).await?,
+        )),
     }
 }
 
@@ -59,12 +56,11 @@ pub async fn get_treasury_asset(
     let asset_address = parse_address(asset_address)?;
     let asset_address_string = format_address(asset_address);
 
-    match sync_treasury_asset(state, asset_address, None, None).await {
-        Ok(record) => Ok(TreasuryAssetResponse::from(record)),
-        Err(error) => match crud::get_treasury_asset(&state.db, &asset_address_string).await? {
-            Some(record) => Ok(TreasuryAssetResponse::from(record)),
-            None => Err(error),
-        },
+    match crud::get_treasury_asset(&state.db, &asset_address_string).await? {
+        Some(record) => Ok(TreasuryAssetResponse::from(record)),
+        None => Ok(TreasuryAssetResponse::from(
+            sync_treasury_asset(state, asset_address, None, None).await?,
+        )),
     }
 }
 

@@ -210,27 +210,31 @@ pub async fn get_investor(
     wallet_address: &str,
 ) -> Result<ComplianceInvestorResponse, AuthError> {
     let wallet = parse_address(wallet_address)?;
+    let wallet_address = format_address(wallet);
 
-    match read_investor_from_chain(&state.env, wallet).await {
-        Ok((is_verified, is_accredited, is_frozen, valid_until, jurisdiction, external_ref)) => {
-            let record = crud::upsert_investor(
-                &state.db,
-                &format_address(wallet),
-                is_verified,
-                is_accredited,
-                is_frozen,
-                u64_to_i64(valid_until, "valid_until")?,
-                &format_h256(jurisdiction),
-                &format_h256(external_ref),
-                None,
-                None,
-            )
-            .await?;
-
-            Ok(ComplianceInvestorResponse::from_record(record))
-        }
-        Err(error) => fallback_investor(&state.db, &format_address(wallet), error).await,
+    if let Some(record) = crud::get_investor(&state.db, &wallet_address).await? {
+        return Ok(ComplianceInvestorResponse::from_record(record));
     }
+
+    let (is_verified, is_accredited, is_frozen, valid_until, jurisdiction, external_ref) =
+        read_investor_from_chain(&state.env, wallet)
+            .await
+            .map_err(|error| AuthError::internal("failed to read investor from chain", error))?;
+    let record = crud::upsert_investor(
+        &state.db,
+        &wallet_address,
+        is_verified,
+        is_accredited,
+        is_frozen,
+        u64_to_i64(valid_until, "valid_until")?,
+        &format_h256(jurisdiction),
+        &format_h256(external_ref),
+        None,
+        None,
+    )
+    .await?;
+
+    Ok(ComplianceInvestorResponse::from_record(record))
 }
 
 pub async fn get_asset_rules(
@@ -238,34 +242,37 @@ pub async fn get_asset_rules(
     asset_address: &str,
 ) -> Result<ComplianceAssetRulesResponse, AuthError> {
     let asset = parse_address(asset_address)?;
+    let asset_address = format_address(asset);
 
-    match read_asset_rules_from_chain(&state.env, asset).await {
-        Ok((
-            transfers_enabled,
-            subscriptions_enabled,
-            redemptions_enabled,
-            requires_accreditation,
-            min_investment,
-            max_investor_balance,
-        )) => {
-            let record = crud::upsert_asset_rules(
-                &state.db,
-                &format_address(asset),
-                transfers_enabled,
-                subscriptions_enabled,
-                redemptions_enabled,
-                requires_accreditation,
-                &u256_to_string(min_investment),
-                &u256_to_string(max_investor_balance),
-                None,
-                None,
-            )
-            .await?;
-
-            Ok(ComplianceAssetRulesResponse::from(record))
-        }
-        Err(error) => fallback_asset_rules(&state.db, &format_address(asset), error).await,
+    if let Some(record) = crud::get_asset_rules(&state.db, &asset_address).await? {
+        return Ok(ComplianceAssetRulesResponse::from(record));
     }
+
+    let (
+        transfers_enabled,
+        subscriptions_enabled,
+        redemptions_enabled,
+        requires_accreditation,
+        min_investment,
+        max_investor_balance,
+    ) = read_asset_rules_from_chain(&state.env, asset)
+        .await
+        .map_err(|error| AuthError::internal("failed to read asset rules from chain", error))?;
+    let record = crud::upsert_asset_rules(
+        &state.db,
+        &asset_address,
+        transfers_enabled,
+        subscriptions_enabled,
+        redemptions_enabled,
+        requires_accreditation,
+        &u256_to_string(min_investment),
+        &u256_to_string(max_investor_balance),
+        None,
+        None,
+    )
+    .await?;
+
+    Ok(ComplianceAssetRulesResponse::from(record))
 }
 
 pub async fn get_jurisdiction_restriction(
@@ -275,32 +282,31 @@ pub async fn get_jurisdiction_restriction(
 ) -> Result<ComplianceJurisdictionRestrictionResponse, AuthError> {
     let asset = parse_address(asset_address)?;
     let jurisdiction = parse_bytes32_input(jurisdiction, "jurisdiction")?;
+    let asset_address = format_address(asset);
     let jurisdiction_hex = format_h256(jurisdiction);
 
-    match read_jurisdiction_restriction_from_chain(&state.env, asset, jurisdiction).await {
-        Ok(restricted) => {
-            let record = crud::upsert_jurisdiction_restriction(
-                &state.db,
-                &format_address(asset),
-                &jurisdiction_hex,
-                restricted,
-                None,
-                None,
-            )
-            .await?;
-
-            Ok(ComplianceJurisdictionRestrictionResponse::from(record))
-        }
-        Err(error) => {
-            fallback_jurisdiction_restriction(
-                &state.db,
-                &format_address(asset),
-                &jurisdiction_hex,
-                error,
-            )
-            .await
-        }
+    if let Some(record) =
+        crud::get_jurisdiction_restriction(&state.db, &asset_address, &jurisdiction_hex).await?
+    {
+        return Ok(ComplianceJurisdictionRestrictionResponse::from(record));
     }
+
+    let restricted = read_jurisdiction_restriction_from_chain(&state.env, asset, jurisdiction)
+        .await
+        .map_err(|error| {
+            AuthError::internal("failed to read jurisdiction restriction from chain", error)
+        })?;
+    let record = crud::upsert_jurisdiction_restriction(
+        &state.db,
+        &asset_address,
+        &jurisdiction_hex,
+        restricted,
+        None,
+        None,
+    )
+    .await?;
+
+    Ok(ComplianceJurisdictionRestrictionResponse::from(record))
 }
 
 pub async fn check_subscribe(
@@ -358,49 +364,6 @@ pub async fn check_redeem(
         is_valid: result.0,
         reason: bytes32_reason(result.1),
     })
-}
-
-async fn fallback_investor(
-    db: &crate::config::db::DbPool,
-    wallet_address: &str,
-    error: anyhow::Error,
-) -> Result<ComplianceInvestorResponse, AuthError> {
-    match crud::get_investor(db, wallet_address).await? {
-        Some(record) => Ok(ComplianceInvestorResponse::from_record(record)),
-        None => Err(AuthError::internal(
-            "failed to read investor data from compliance registry",
-            error,
-        )),
-    }
-}
-
-async fn fallback_asset_rules(
-    db: &crate::config::db::DbPool,
-    asset_address: &str,
-    error: anyhow::Error,
-) -> Result<ComplianceAssetRulesResponse, AuthError> {
-    match crud::get_asset_rules(db, asset_address).await? {
-        Some(record) => Ok(ComplianceAssetRulesResponse::from(record)),
-        None => Err(AuthError::internal(
-            "failed to read asset rules from compliance registry",
-            error,
-        )),
-    }
-}
-
-async fn fallback_jurisdiction_restriction(
-    db: &crate::config::db::DbPool,
-    asset_address: &str,
-    jurisdiction: &str,
-    error: anyhow::Error,
-) -> Result<ComplianceJurisdictionRestrictionResponse, AuthError> {
-    match crud::get_jurisdiction_restriction(db, asset_address, jurisdiction).await? {
-        Some(record) => Ok(ComplianceJurisdictionRestrictionResponse::from(record)),
-        None => Err(AuthError::internal(
-            "failed to read jurisdiction restriction from compliance registry",
-            error,
-        )),
-    }
 }
 
 fn build_investor_tuple(
@@ -760,18 +723,21 @@ fn u256_to_string(value: U256) -> String {
 
 fn bytes32_reason(value: H256) -> String {
     let bytes = value.as_bytes();
+    if bytes.iter().all(|byte| *byte == 0) {
+        return "UNKNOWN".to_owned();
+    }
+
     let trimmed = bytes
         .iter()
         .copied()
         .take_while(|byte| *byte != 0)
         .collect::<Vec<_>>();
 
-    if trimmed.is_empty() {
-        return "UNKNOWN".to_owned();
-    }
-    if trimmed
-        .iter()
-        .all(|value| value.is_ascii_graphic() || *value == b'_')
+    if !trimmed.is_empty()
+        && bytes[trimmed.len()..].iter().all(|byte| *byte == 0)
+        && trimmed
+            .iter()
+            .all(|value| value.is_ascii_graphic() || *value == b'_')
     {
         if let Ok(text) = String::from_utf8(trimmed) {
             return text;
