@@ -3,7 +3,10 @@ use uuid::Uuid;
 use crate::{
     config::db::DbPool,
     module::{
-        asset::model::{AssetCatalogRecord, AssetPriceHistoryRecord, AssetRecord, AssetTypeRecord},
+        asset::model::{
+            AssetCatalogRecord, AssetPriceHistoryRecord, AssetRecord, AssetTagCountRecord,
+            AssetTypeRecord,
+        },
         auth::error::AuthError,
     },
 };
@@ -27,6 +30,7 @@ mod sql {
 pub struct AssetListFilters<'a> {
     pub chain_id: i64,
     pub asset_type_id: Option<&'a str>,
+    pub tag_slug: Option<&'a str>,
     pub q: Option<&'a str>,
     pub asset_state: Option<i32>,
     pub self_service_purchase_enabled: Option<bool>,
@@ -176,6 +180,11 @@ pub async fn list_assets(
         query.push(" AND a.asset_type_id = ");
         query.push_bind(asset_type_id);
     }
+    if let Some(tag_slug) = filters.tag_slug {
+        query.push(" AND COALESCE(c.suggested_internal_tags, ARRAY[]::TEXT[]) @> ARRAY[");
+        query.push_bind(tag_slug);
+        query.push("]::TEXT[]");
+    }
     if let Some(asset_state) = filters.asset_state {
         query.push(" AND a.asset_state = ");
         query.push_bind(asset_state);
@@ -230,6 +239,7 @@ pub async fn list_assets_by_type(
         AssetListFilters {
             chain_id,
             asset_type_id: Some(asset_type_id),
+            tag_slug: None,
             q: None,
             asset_state: None,
             self_service_purchase_enabled: None,
@@ -241,6 +251,31 @@ pub async fn list_assets_by_type(
         },
     )
     .await
+}
+
+pub async fn list_asset_tags(
+    pool: &DbPool,
+    chain_id: i64,
+) -> Result<Vec<AssetTagCountRecord>, AuthError> {
+    sqlx::query_as::<_, AssetTagCountRecord>(
+        r#"
+        SELECT
+            tag.slug AS slug,
+            COUNT(*)::BIGINT AS asset_count
+        FROM assets a
+        JOIN asset_catalog_entries c ON c.asset_address = a.asset_address
+        CROSS JOIN LATERAL unnest(COALESCE(c.suggested_internal_tags, ARRAY[]::TEXT[])) AS tag(slug)
+        WHERE a.chain_id = $1
+          AND COALESCE(c.visible, TRUE) = TRUE
+          AND COALESCE(c.searchable, TRUE) = TRUE
+        GROUP BY tag.slug
+        ORDER BY COUNT(*) DESC, tag.slug ASC
+        "#,
+    )
+    .bind(chain_id)
+    .fetch_all(pool)
+    .await
+    .map_err(AuthError::from)
 }
 
 #[allow(clippy::too_many_arguments)]

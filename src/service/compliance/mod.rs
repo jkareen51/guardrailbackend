@@ -76,6 +76,38 @@ pub async fn upsert_investor(
     })
 }
 
+pub async fn auto_allow_investor_for_open_purchase(
+    state: &AppState,
+    wallet_address: &str,
+) -> Result<ComplianceInvestorResponse, AuthError> {
+    let wallet = parse_address(wallet_address)?;
+    let investor = build_investor_tuple(
+        true,
+        false,
+        false,
+        None,
+        "GLOBAL",
+        Some("AUTO_OPEN_PURCHASE"),
+    )?;
+
+    let tx_hash = write_set_investor_data(&state.env, wallet, investor).await?;
+    let record = crud::upsert_investor(
+        &state.db,
+        &format_address(wallet),
+        true,
+        false,
+        false,
+        valid_until_to_i64(None)?,
+        &format_h256(investor.4),
+        &format_h256(investor.5),
+        None,
+        Some(&tx_hash),
+    )
+    .await?;
+
+    Ok(ComplianceInvestorResponse::from_record(record))
+}
+
 pub async fn batch_upsert_investors(
     state: &AppState,
     actor_user_id: Uuid,

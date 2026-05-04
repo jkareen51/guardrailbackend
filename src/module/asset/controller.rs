@@ -12,14 +12,14 @@ use crate::{
             AdminSetAssetCatalogRequest, AdminSetAssetComplianceRegistryRequest,
             AdminSetAssetMetadataRequest, AdminSetAssetPriceRequest, AdminSetAssetPricingRequest,
             AdminSetAssetSelfServicePurchaseRequest, AdminSetAssetStateRequest,
-            AdminSetAssetTreasuryRequest, AssetCatalogWriteResponse, AssetDetailQuery,
-            AssetDetailResponse, AssetFactoryStatusResponse, AssetFactoryWriteResponse,
-            AssetHistoryQuery, AssetHistoryResponse, AssetHolderStateResponse, AssetListResponse,
-            AssetPreviewRequest, AssetPreviewResponse, AssetResponse, AssetTransferCheckResponse,
-            AssetTypeListResponse, AssetTypeResponse, AssetTypeWriteResponse, AssetWriteResponse,
-            GaslessApprovePaymentTokenRequest, GaslessAssetActionResponse,
-            GaslessCancelRedemptionRequest, GaslessClaimYieldRequest, GaslessPurchaseAssetRequest,
-            GaslessRedeemAssetRequest, ListAssetsQuery,
+            AdminSetAssetTreasuryRequest, AssetArchiveWriteResponse, AssetCatalogWriteResponse,
+            AssetDetailQuery, AssetDetailResponse, AssetFactoryStatusResponse,
+            AssetFactoryWriteResponse, AssetHistoryQuery, AssetHistoryResponse,
+            AssetHolderStateResponse, AssetListResponse, AssetPreviewRequest, AssetPreviewResponse,
+            AssetResponse, AssetTransferCheckResponse, AssetTypeListResponse, AssetTypeResponse,
+            AssetTypeWriteResponse, AssetWriteResponse, GaslessApprovePaymentTokenRequest,
+            GaslessAssetActionResponse, GaslessCancelRedemptionRequest, GaslessClaimYieldRequest,
+            GaslessPurchaseAssetRequest, GaslessRedeemAssetRequest, ListAssetsQuery,
         },
         auth::error::AuthError,
     },
@@ -261,6 +261,16 @@ pub async fn set_asset_state(
 ) -> Result<Json<AssetWriteResponse>, AuthError> {
     Ok(Json(
         asset::set_asset_state(&state, authenticated_user.user_id, &asset_address, payload).await?,
+    ))
+}
+
+pub async fn archive_asset(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Path(asset_address): Path<String>,
+) -> Result<Json<AssetArchiveWriteResponse>, AuthError> {
+    Ok(Json(
+        asset::archive_asset(&state, authenticated_user.user_id, &asset_address).await?,
     ))
 }
 

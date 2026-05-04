@@ -27,18 +27,20 @@ use crate::{
                 AdminSetAssetComplianceRegistryRequest, AdminSetAssetMetadataRequest,
                 AdminSetAssetPriceRequest, AdminSetAssetPricingRequest,
                 AdminSetAssetSelfServicePurchaseRequest, AdminSetAssetStateRequest,
-                AdminSetAssetTreasuryRequest, AssetCatalogWriteResponse, AssetDetailQuery,
-                AssetDetailResponse, AssetFactoryStatusResponse, AssetFactoryWriteResponse,
-                AssetHistoryCandleResponse, AssetHistoryQuery, AssetHistoryResponse,
-                AssetHolderStateResponse, AssetListResponse, AssetPreviewRequest,
-                AssetPreviewResponse, AssetResponse, AssetTransferCheckResponse,
-                AssetTypeListResponse, AssetTypeResponse, AssetTypeWriteResponse,
-                AssetWriteResponse, GaslessApprovePaymentTokenRequest, GaslessAssetActionResponse,
-                GaslessCancelRedemptionRequest, GaslessClaimYieldRequest,
-                GaslessPurchaseAssetRequest, GaslessRedeemAssetRequest, ListAssetsQuery,
+                AdminSetAssetTreasuryRequest, AssetArchiveWriteResponse, AssetCatalogWriteResponse,
+                AssetDetailQuery, AssetDetailResponse, AssetFactoryStatusResponse,
+                AssetFactoryWriteResponse, AssetHistoryCandleResponse, AssetHistoryQuery,
+                AssetHistoryResponse, AssetHolderStateResponse, AssetListResponse,
+                AssetPreviewRequest, AssetPreviewResponse, AssetResponse,
+                AssetTransferCheckResponse, AssetTypeListResponse, AssetTypeResponse,
+                AssetTypeWriteResponse, AssetWriteResponse, GaslessApprovePaymentTokenRequest,
+                GaslessAssetActionResponse, GaslessCancelRedemptionRequest,
+                GaslessClaimYieldRequest, GaslessPurchaseAssetRequest, GaslessRedeemAssetRequest,
+                ListAssetsQuery,
             },
         },
         auth::{crud as auth_crud, error::AuthError},
+        compliance::schema::ComplianceCheckSubscribeRequest,
         oracle::{crud as oracle_crud, model::OracleValuationHistoryRecord},
     },
     service::{
@@ -134,16 +136,6 @@ pub async fn get_factory_status(state: &AppState) -> Result<AssetFactoryStatusRe
 }
 
 pub async fn list_asset_types(state: &AppState) -> Result<AssetTypeListResponse, AuthError> {
-    let asset_types = crud::list_asset_types(&state.db).await?;
-    if !asset_types.is_empty() {
-        return Ok(AssetTypeListResponse {
-            asset_types: asset_types
-                .into_iter()
-                .map(AssetTypeResponse::from)
-                .collect(),
-        });
-    }
-
     match read_registered_asset_type_ids(&state.env).await {
         Ok(asset_type_ids) => {
             let mut asset_types = Vec::with_capacity(asset_type_ids.len());
@@ -153,9 +145,16 @@ pub async fn list_asset_types(state: &AppState) -> Result<AssetTypeListResponse,
             }
             Ok(AssetTypeListResponse { asset_types })
         }
-        Err(_error) => Ok(AssetTypeListResponse {
-            asset_types: Vec::new(),
-        }),
+        Err(_error) => {
+            let asset_types = crud::list_asset_types(&state.db).await?;
+            Ok(AssetTypeListResponse {
+                asset_types: asset_types
+                    .into_iter()
+                    .filter(|record| record.is_registered)
+                    .map(AssetTypeResponse::from)
+                    .collect(),
+            })
+        }
     }
 }
 
@@ -182,6 +181,28 @@ pub async fn register_asset_type(
 ) -> Result<AssetTypeWriteResponse, AuthError> {
     let asset_type_id = parse_bytes32_input(&payload.asset_type_id, "asset_type_id")?;
     let implementation_address = parse_address(&payload.implementation_address)?;
+    let asset_type_id_hex = format_h256(asset_type_id);
+    let (registered_name, registered_implementation, is_registered) =
+        read_asset_type_from_chain(&state.env, asset_type_id).await?;
+
+    if is_registered {
+        crud::upsert_asset_type(
+            &state.db,
+            &asset_type_id_hex,
+            &registered_name,
+            &format_address(registered_implementation),
+            true,
+            Some(actor_user_id),
+            None,
+        )
+        .await?;
+
+        return Err(AuthError::conflict(format!(
+            "asset type `{}` is already registered with implementation {}",
+            asset_type_id_hex,
+            format_address(registered_implementation)
+        )));
+    }
 
     let tx_hash = send_factory_transaction::<_, ()>(
         &state.env,
@@ -281,6 +302,8 @@ pub async fn create_asset(
     let proposal_id = parse_u256(&payload.proposal_id, "proposal_id")?;
     let asset_type_id = parse_bytes32_input(&payload.asset_type_id, "asset_type_id")?;
     let max_supply = parse_u256(&payload.max_supply, "max_supply")?;
+    let catalog_slug = build_catalog_slug(payload.slug.as_deref(), &payload.name)?;
+    ensure_asset_creation_preconditions(state, proposal_id, asset_type_id, &catalog_slug).await?;
     let config_data = build_asset_creation_data(&payload)?;
 
     let tx_hash = send_factory_transaction::<_, Address>(
@@ -332,7 +355,7 @@ pub async fn create_asset(
         &record.asset_address,
         Some(actor_user_id),
         Some(actor_user_id),
-        build_catalog_slug(payload.slug.as_deref(), &payload.name)?,
+        catalog_slug,
         payload.image_url.as_deref(),
         payload.summary.as_deref(),
         payload.market_segment.as_deref(),
@@ -809,6 +832,90 @@ pub async fn set_asset_state(
     })
 }
 
+pub async fn archive_asset(
+    state: &AppState,
+    actor_user_id: Uuid,
+    asset_address: &str,
+) -> Result<AssetArchiveWriteResponse, AuthError> {
+    let asset_address = parse_address(asset_address)?;
+    let mut asset_record =
+        load_asset_record_for_admin_write(state, asset_address, actor_user_id).await?;
+    let mut state_tx_hash = None;
+    let mut self_service_purchase_tx_hash = None;
+
+    if asset_record.asset_state != 1 {
+        let tx_hash = send_asset_transaction::<_, ()>(
+            &state.env,
+            asset_address,
+            "setAssetState",
+            1_u8,
+            "failed to submit archive setAssetState transaction",
+        )
+        .await?;
+        asset_record = sync_asset(
+            state,
+            asset_address,
+            None,
+            Some(actor_user_id),
+            Some(&tx_hash),
+        )
+        .await?;
+        state_tx_hash = Some(tx_hash);
+    }
+
+    if asset_record.self_service_purchase_enabled {
+        let tx_hash = send_asset_transaction::<_, ()>(
+            &state.env,
+            asset_address,
+            "setSelfServicePurchaseEnabled",
+            false,
+            "failed to submit archive setSelfServicePurchaseEnabled transaction",
+        )
+        .await?;
+        asset_record = sync_asset(
+            state,
+            asset_address,
+            None,
+            Some(actor_user_id),
+            Some(&tx_hash),
+        )
+        .await?;
+        self_service_purchase_tx_hash = Some(tx_hash);
+    }
+
+    let slug = build_catalog_slug(asset_record.slug.as_deref(), &asset_record.name)?;
+    upsert_asset_catalog(
+        state,
+        &asset_record.asset_address,
+        asset_record.created_by_user_id.or(Some(actor_user_id)),
+        Some(actor_user_id),
+        slug,
+        asset_record.image_url.as_deref(),
+        asset_record.summary.as_deref(),
+        asset_record.market_segment.as_deref(),
+        &asset_record.suggested_internal_tags,
+        &asset_record.sources,
+        false,
+        false,
+        false,
+    )
+    .await?;
+
+    let asset_record = crud::get_asset(
+        &state.db,
+        state.env.monad_chain_id,
+        &asset_record.asset_address,
+    )
+    .await?
+    .ok_or_else(|| AuthError::internal("asset missing after archive", "missing asset"))?;
+
+    Ok(AssetArchiveWriteResponse {
+        state_tx_hash,
+        self_service_purchase_tx_hash,
+        asset: AssetResponse::from(asset_record),
+    })
+}
+
 pub async fn set_subscription_price(
     state: &AppState,
     actor_user_id: Uuid,
@@ -1241,6 +1348,36 @@ pub async fn purchase_asset(
     let asset_address = parse_address(asset_address)?;
     let token_amount = parse_u256(&payload.token_amount, "token_amount")?;
     let wallet = user_wallet_for_action(&state.db, user_id).await?;
+    let asset = read_asset_snapshot_from_chain(&state.env, asset_address).await?;
+    let holder = read_asset_holder_snapshot_from_chain(&state.env, asset_address, wallet).await?;
+    let payment_token_cost =
+        read_asset_preview_purchase(&state.env, asset_address, token_amount).await?;
+
+    tracing::info!(
+        asset_address = %format_address(asset_address),
+        wallet_address = %format_address(wallet),
+        token_amount = %token_amount,
+        payment_token_cost = %payment_token_cost,
+        total_supply = %asset.total_supply,
+        max_supply = %asset.max_supply,
+        payment_token_balance = %holder.payment_token_balance,
+        payment_token_allowance_to_treasury = %holder.payment_token_allowance_to_treasury,
+        asset_state = asset.asset_state,
+        asset_state_label = %asset.asset_state_label,
+        self_service_purchase_enabled = asset.self_service_purchase_enabled,
+        "asset purchase preflight"
+    );
+
+    ensure_purchase_preconditions(
+        state,
+        wallet,
+        &asset,
+        &holder,
+        token_amount,
+        payment_token_cost,
+    )
+    .await?;
+
     let call_data =
         build_asset_calldata::<_, ()>(&state.env, asset_address, "purchase", token_amount).await?;
     let tx_hash = gasless::submit_user_calls(
@@ -1251,7 +1388,20 @@ pub async fn purchase_asset(
                 .map_err(|error| AuthError::internal("failed to build purchase call", error))?,
         ],
     )
-    .await?;
+    .await
+    .map_err(|error| {
+        tracing::error!(
+            asset_address = %format_address(asset_address),
+            wallet_address = %format_address(wallet),
+            token_amount = %token_amount,
+            payment_token_cost = %payment_token_cost,
+            payment_token_balance = %holder.payment_token_balance,
+            payment_token_allowance_to_treasury = %holder.payment_token_allowance_to_treasury,
+            error = %error,
+            "asset purchase submission failed"
+        );
+        error
+    })?;
 
     let asset_record = sync_asset(state, asset_address, None, None, Some(&tx_hash)).await?;
     let holder = read_asset_holder_snapshot_from_chain(&state.env, asset_address, wallet).await?;
@@ -1435,6 +1585,126 @@ async fn user_wallet_for_action(
         .await?
         .ok_or_else(|| AuthError::forbidden("user wallet is not linked"))?;
     parse_address(&wallet.wallet_address)
+}
+
+async fn ensure_purchase_preconditions(
+    state: &AppState,
+    wallet: Address,
+    asset: &AssetSnapshot,
+    holder: &AssetHolderSnapshot,
+    token_amount: U256,
+    payment_token_cost: U256,
+) -> Result<(), AuthError> {
+    if asset.asset_state != 0 {
+        return Err(AuthError::bad_request(format!(
+            "asset is not active for purchase: current_state={}",
+            asset.asset_state_label
+        )));
+    }
+
+    if !asset.self_service_purchase_enabled {
+        return Err(AuthError::bad_request(
+            "self-service purchase is disabled for this asset",
+        ));
+    }
+
+    let payment_token_balance = U256::from_dec_str(&holder.payment_token_balance)
+        .map_err(|error| AuthError::internal("invalid payment token balance snapshot", error))?;
+    if payment_token_balance < payment_token_cost {
+        return Err(AuthError::bad_request(format!(
+            "insufficient payment-token balance for purchase: required={}, available={}",
+            payment_token_cost, payment_token_balance
+        )));
+    }
+
+    let payment_token_allowance = U256::from_dec_str(&holder.payment_token_allowance_to_treasury)
+        .map_err(|error| {
+        AuthError::internal("invalid payment token allowance snapshot", error)
+    })?;
+    if payment_token_allowance < payment_token_cost {
+        return Err(AuthError::bad_request(format!(
+            "insufficient payment-token allowance to treasury for purchase: required={}, approved={}",
+            payment_token_cost, payment_token_allowance
+        )));
+    }
+
+    let current_total_supply = U256::from_dec_str(&asset.total_supply)
+        .map_err(|error| AuthError::internal("invalid asset total supply snapshot", error))?;
+    let max_supply = U256::from_dec_str(&asset.max_supply)
+        .map_err(|error| AuthError::internal("invalid asset max supply snapshot", error))?;
+    let projected_total_supply = current_total_supply.saturating_add(token_amount);
+    if projected_total_supply > max_supply {
+        return Err(AuthError::bad_request(format!(
+            "purchase exceeds asset max supply: projected_total_supply={}, max_supply={}",
+            projected_total_supply, max_supply
+        )));
+    }
+
+    let resulting_balance = U256::from_dec_str(&holder.balance)
+        .map_err(|error| AuthError::internal("invalid asset balance snapshot", error))?
+        .saturating_add(token_amount);
+    let wallet_address = format_address(wallet);
+    let asset_address = asset.asset_address.clone();
+    let amount = token_amount.to_string();
+    let resulting_balance_string = resulting_balance.to_string();
+    let mut compliance = compliance::check_subscribe(
+        state,
+        ComplianceCheckSubscribeRequest {
+            asset_address: asset_address.clone(),
+            investor_wallet: wallet_address.clone(),
+            amount: amount.clone(),
+            resulting_balance: resulting_balance_string.clone(),
+        },
+    )
+    .await?;
+    if !compliance.is_valid
+        && state.env.open_purchase_auto_whitelist
+        && compliance.reason == "INVESTOR_NOT_ELIGIBLE"
+    {
+        tracing::info!(
+            asset_address,
+            wallet_address,
+            "auto-whitelisting investor for open purchase"
+        );
+        let investor =
+            compliance::auto_allow_investor_for_open_purchase(state, &wallet_address).await?;
+        tracing::info!(
+            wallet_address = %investor.wallet_address,
+            is_verified = investor.is_verified,
+            is_whitelisted = investor.is_whitelisted,
+            "open purchase auto-whitelist applied"
+        );
+        compliance = compliance::check_subscribe(
+            state,
+            ComplianceCheckSubscribeRequest {
+                asset_address,
+                investor_wallet: wallet_address,
+                amount,
+                resulting_balance: resulting_balance_string,
+            },
+        )
+        .await?;
+    }
+    if !compliance.is_valid {
+        return Err(AuthError::bad_request(format!(
+            "purchase blocked by compliance: {}",
+            compliance.reason
+        )));
+    }
+
+    tracing::debug!(
+        token_amount = %token_amount,
+        payment_token_cost = %payment_token_cost,
+        total_supply = %current_total_supply,
+        max_supply = %max_supply,
+        projected_total_supply = %projected_total_supply,
+        payment_token_balance = %payment_token_balance,
+        payment_token_allowance = %payment_token_allowance,
+        resulting_balance = %resulting_balance,
+        "asset purchase preflight passed"
+    );
+
+    Ok(())
 }
 
 async fn read_factory_status_from_chain(
@@ -1884,6 +2154,7 @@ async fn list_assets_from_db(
         crud::AssetListFilters {
             chain_id: state.env.monad_chain_id,
             asset_type_id: query.asset_type_id.as_deref(),
+            tag_slug: None,
             q: query.q.as_deref(),
             asset_state: query.asset_state,
             self_service_purchase_enabled: query.self_service_purchase_enabled,
@@ -1937,6 +2208,66 @@ async fn upsert_asset_catalog(
         updated_by_user_id,
     )
     .await?;
+
+    Ok(())
+}
+
+async fn load_asset_record_for_admin_write(
+    state: &AppState,
+    asset_address: Address,
+    actor_user_id: Uuid,
+) -> Result<AssetRecord, AuthError> {
+    match sync_asset(state, asset_address, None, Some(actor_user_id), None).await {
+        Ok(record) => Ok(record),
+        Err(error) => match crud::get_asset(
+            &state.db,
+            state.env.monad_chain_id,
+            &format_address(asset_address),
+        )
+        .await?
+        {
+            Some(record) => Ok(record),
+            None => Err(error),
+        },
+    }
+}
+
+async fn ensure_asset_creation_preconditions(
+    state: &AppState,
+    proposal_id: U256,
+    asset_type_id: H256,
+    catalog_slug: &str,
+) -> Result<(), AuthError> {
+    let existing_asset_address = read_factory_asset_address(&state.env, proposal_id).await?;
+    if existing_asset_address != Address::zero() {
+        let existing_asset_address = format_address(existing_asset_address);
+        let state_suffix =
+            crud::get_asset(&state.db, state.env.monad_chain_id, &existing_asset_address)
+                .await?
+                .map(|asset| format!(" current_state={}", asset.asset_state_label))
+                .unwrap_or_default();
+
+        return Err(AuthError::bad_request(format!(
+            "proposal_id is already assigned to asset {}. Archived assets still reserve proposal IDs.{}",
+            existing_asset_address, state_suffix
+        )));
+    }
+
+    let (_, _, is_registered) = read_asset_type_from_chain(&state.env, asset_type_id).await?;
+    if !is_registered {
+        return Err(AuthError::bad_request(
+            "asset_type_id is not currently registered in the asset factory",
+        ));
+    }
+
+    if let Some(existing_asset) =
+        crud::get_asset_by_slug(&state.db, state.env.monad_chain_id, catalog_slug).await?
+    {
+        return Err(AuthError::bad_request(format!(
+            "asset slug `{}` is already in use by asset {}. Use a new slug when recreating an archived asset.",
+            catalog_slug, existing_asset.asset_address
+        )));
+    }
 
     Ok(())
 }

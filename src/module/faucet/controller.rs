@@ -23,8 +23,12 @@ pub async fn faucet_usdc(
     let requested_amount = payload.and_then(|Json(value)| value.amount);
 
     Ok(Json(
-        faucet::request_usdc_faucet(&state, authenticated_user.user_id, requested_amount.as_deref())
-            .await?,
+        faucet::request_usdc_faucet(
+            &state,
+            authenticated_user.user_id,
+            requested_amount.as_deref(),
+        )
+        .await?,
     ))
 }
 

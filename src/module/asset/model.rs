@@ -81,3 +81,9 @@ pub struct AssetPriceHistoryRecord {
     pub observed_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, FromRow)]
+pub struct AssetTagCountRecord {
+    pub slug: String,
+    pub asset_count: i64,
+}

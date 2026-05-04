@@ -152,7 +152,10 @@ async fn resolve_faucet_amount(
     state: &AppState,
     requested_amount: Option<&str>,
 ) -> Result<U256, AuthError> {
-    match requested_amount.map(str::trim).filter(|value| !value.is_empty()) {
+    match requested_amount
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         Some(raw) => {
             let decimals = read_token_decimals(&state.env).await?;
             parse_display_amount(raw, decimals)
@@ -164,9 +167,9 @@ async fn resolve_faucet_amount(
 }
 
 async fn read_token_decimals(env: &Environment) -> Result<u8, AuthError> {
-    let contract = read_token_contract(env)
-        .await
-        .map_err(|error| AuthError::internal("failed to build faucet token read contract", error))?;
+    let contract = read_token_contract(env).await.map_err(|error| {
+        AuthError::internal("failed to build faucet token read contract", error)
+    })?;
 
     contract
         .method::<_, u8>("decimals", ())
@@ -209,7 +212,9 @@ fn parse_display_amount(raw: &str, decimals: u8) -> Result<U256, AuthError> {
         return Err(AuthError::bad_request("amount must be greater than zero"));
     }
 
-    let scaled = (amount * decimal_power_of_ten(decimals)).normalize().to_string();
+    let scaled = (amount * decimal_power_of_ten(decimals))
+        .normalize()
+        .to_string();
     if scaled.contains('.') {
         return Err(AuthError::bad_request(format!(
             "amount supports up to {decimals} decimal places"

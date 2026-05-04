@@ -7,9 +7,9 @@ use crate::{
     app::AppState,
     middleware::{admin::require_admin, user::require_auth},
     module::asset::controller::{
-        approve_payment_token, burn_asset, cancel_redemption, check_transfer, claim_yield,
-        controller_transfer, create_asset, disable_controller, get_asset, get_asset_by_proposal,
-        get_asset_by_slug, get_asset_detail, get_asset_detail_by_proposal,
+        approve_payment_token, archive_asset, burn_asset, cancel_redemption, check_transfer,
+        claim_yield, controller_transfer, create_asset, disable_controller, get_asset,
+        get_asset_by_proposal, get_asset_by_slug, get_asset_detail, get_asset_detail_by_proposal,
         get_asset_detail_by_slug, get_asset_history, get_asset_history_by_proposal,
         get_asset_history_by_slug, get_asset_holder_state, get_asset_type, get_factory_status,
         issue_asset, list_asset_types, list_assets, list_assets_by_type, pause_factory,
@@ -78,6 +78,7 @@ pub fn admin_router(state: AppState) -> Router<AppState> {
         .route("/assets", post(create_asset))
         .route("/assets/{asset_address}/issue", post(issue_asset))
         .route("/assets/{asset_address}/burn", post(burn_asset))
+        .route("/assets/{asset_address}/archive", post(archive_asset))
         .route("/assets/{asset_address}/state", put(set_asset_state))
         .route(
             "/assets/{asset_address}/subscription-price",

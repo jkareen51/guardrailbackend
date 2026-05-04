@@ -403,18 +403,25 @@ where
     wait_for_receipt(pending).await
 }
 
-async fn ensure_operator_liquidity_capacity(env: &Environment, amount: U256) -> Result<(), AuthError> {
+async fn ensure_operator_liquidity_capacity(
+    env: &Environment,
+    amount: U256,
+) -> Result<(), AuthError> {
     let signer = admin_signer(env).await?;
     let operator_address = signer.address();
     let treasury_address = parse_address(&env.treasury_address)?;
     let payment_token_address = parse_address(&env.payment_token_address)?;
     let token_contract = read_erc20_contract(env, payment_token_address)
         .await
-        .map_err(|error| AuthError::internal("failed to build payment token read contract", error))?;
+        .map_err(|error| {
+            AuthError::internal("failed to build payment token read contract", error)
+        })?;
 
     let operator_balance = token_contract
         .method::<_, U256>("balanceOf", operator_address)
-        .map_err(|error| AuthError::internal("failed to build payment token balanceOf call", error))?
+        .map_err(|error| {
+            AuthError::internal("failed to build payment token balanceOf call", error)
+        })?
         .call()
         .await
         .map_err(|error| AuthError::internal("failed to call payment token balanceOf", error))?;
@@ -427,7 +434,9 @@ async fn ensure_operator_liquidity_capacity(env: &Environment, amount: U256) -> 
 
     let operator_allowance = token_contract
         .method::<_, U256>("allowance", (operator_address, treasury_address))
-        .map_err(|error| AuthError::internal("failed to build payment token allowance call", error))?
+        .map_err(|error| {
+            AuthError::internal("failed to build payment token allowance call", error)
+        })?
         .call()
         .await
         .map_err(|error| AuthError::internal("failed to call payment token allowance", error))?;

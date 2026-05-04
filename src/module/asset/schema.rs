@@ -335,6 +335,13 @@ pub struct AssetWriteResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct AssetArchiveWriteResponse {
+    pub state_tx_hash: Option<String>,
+    pub self_service_purchase_tx_hash: Option<String>,
+    pub asset: AssetResponse,
+}
+
+#[derive(Debug, Serialize)]
 pub struct AssetCatalogWriteResponse {
     pub asset: AssetResponse,
 }
