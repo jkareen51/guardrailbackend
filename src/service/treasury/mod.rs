@@ -94,6 +94,7 @@ pub async fn deposit_asset_liquidity(
 ) -> Result<TreasuryAssetWriteResponse, AuthError> {
     let asset_address = parse_address(&payload.asset_address)?;
     let amount = parse_u256(&payload.amount, "amount")?;
+    ensure_operator_liquidity_capacity(&state.env, amount).await?;
     let tx_hash = send_treasury_transaction::<_, ()>(
         &state.env,
         "depositAssetLiquidity",
@@ -326,6 +327,14 @@ async fn read_treasury_contract(env: &Environment) -> Result<Contract<Provider<H
     ))
 }
 
+async fn read_erc20_contract(
+    env: &Environment,
+    token_address: Address,
+) -> Result<Contract<Provider<Http>>> {
+    let provider = rpc::monad_provider_arc(env).await?;
+    Ok(Contract::new(token_address, erc20_abi()?, provider))
+}
+
 async fn write_treasury_contract(
     env: &Environment,
 ) -> Result<Contract<SignerMiddleware<Provider<Http>, LocalWallet>>, AuthError> {
@@ -392,4 +401,42 @@ where
         .await
         .map_err(|error| AuthError::internal(error_context, error))?;
     wait_for_receipt(pending).await
+}
+
+async fn ensure_operator_liquidity_capacity(env: &Environment, amount: U256) -> Result<(), AuthError> {
+    let signer = admin_signer(env).await?;
+    let operator_address = signer.address();
+    let treasury_address = parse_address(&env.treasury_address)?;
+    let payment_token_address = parse_address(&env.payment_token_address)?;
+    let token_contract = read_erc20_contract(env, payment_token_address)
+        .await
+        .map_err(|error| AuthError::internal("failed to build payment token read contract", error))?;
+
+    let operator_balance = token_contract
+        .method::<_, U256>("balanceOf", operator_address)
+        .map_err(|error| AuthError::internal("failed to build payment token balanceOf call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call payment token balanceOf", error))?;
+    if operator_balance < amount {
+        return Err(AuthError::bad_request(format!(
+            "insufficient operator payment-token balance: required={}, available={}",
+            amount, operator_balance
+        )));
+    }
+
+    let operator_allowance = token_contract
+        .method::<_, U256>("allowance", (operator_address, treasury_address))
+        .map_err(|error| AuthError::internal("failed to build payment token allowance call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call payment token allowance", error))?;
+    if operator_allowance < amount {
+        return Err(AuthError::bad_request(format!(
+            "insufficient treasury allowance from operator wallet: required={}, approved={}",
+            amount, operator_allowance
+        )));
+    }
+
+    Ok(())
 }
