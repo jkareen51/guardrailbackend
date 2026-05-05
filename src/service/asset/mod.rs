@@ -1457,15 +1457,30 @@ pub async fn redeem_asset(
     let wallet = user_wallet_for_action(&state.db, user_id).await?;
     let amount = parse_u256(&payload.amount, "amount")?;
     let data = parse_bytes_input(payload.data.as_deref(), "data")?;
-    let call_data =
-        build_asset_calldata::<_, U256>(&state.env, asset_address, "redeem", (amount, data))
+    
+    // Build both redeem and processRedemption calls to execute atomically
+    let redeem_call_data =
+        build_asset_calldata::<_, U256>(&state.env, asset_address, "redeem", (amount, data.clone()))
             .await?;
+    
+    let process_redemption_call_data =
+        build_asset_calldata::<_, U256>(
+            &state.env,
+            asset_address,
+            "processRedemption",
+            (wallet, amount, wallet, data),
+        )
+        .await?;
+    
+    // Submit both calls in a single transaction so user gets USDC immediately
     let tx_hash = gasless::submit_user_calls(
         state,
         user_id,
         vec![
-            gasless::target_call(asset_address, call_data)
+            gasless::target_call(asset_address, redeem_call_data)
                 .map_err(|error| AuthError::internal("failed to build redeem call", error))?,
+            gasless::target_call(asset_address, process_redemption_call_data)
+                .map_err(|error| AuthError::internal("failed to build processRedemption call", error))?,
         ],
     )
     .await?;
