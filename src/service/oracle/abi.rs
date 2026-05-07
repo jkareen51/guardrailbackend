@@ -43,6 +43,9 @@ const ORACLE_BRIDGE_ABI_JSON: &str = r#"
       { "name": "referenceId", "type": "bytes32", "internalType": "bytes32" }
     ]
   }], "stateMutability": "view" },
+  { "type": "function", "name": "isValuationFresh", "inputs": [
+    { "name": "asset", "type": "address", "internalType": "address" }
+  ], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },
   { "type": "function", "name": "getDocumentHash", "inputs": [
     { "name": "asset", "type": "address", "internalType": "address" },
     { "name": "documentType", "type": "bytes32", "internalType": "bytes32" }

@@ -23,12 +23,13 @@ use crate::{
                 AdminAnchorDocumentRequest, AdminSetTrustedOracleRequest,
                 AdminSubmitValuationAndSyncPricingRequest, AdminSubmitValuationRequest,
                 OracleDocumentResponse, OracleDocumentWriteResponse, OracleTrustedOracleResponse,
-                OracleTrustedOracleWriteResponse, OracleValuationResponse,
-                OracleValuationWriteResponse,
+                OracleTrustedOracleWriteResponse, OracleValuationFreshnessResponse,
+                OracleValuationResponse, OracleValuationWriteResponse,
             },
         },
     },
     service::{
+        asset as asset_service,
         chain::{
             admin_signer, format_address, format_h256, parse_address, parse_bytes32_input,
             parse_contract_address, parse_u256, wait_for_receipt,
@@ -42,6 +43,7 @@ use self::abi::oracle_bridge_abi;
 pub mod abi;
 
 type AssetValuationTuple = (U256, U256, u64, H256);
+const MAX_VALUATION_AGE_SECONDS: i64 = 90 * 24 * 60 * 60;
 
 pub async fn get_trusted_oracle(
     state: &AppState,
@@ -101,6 +103,43 @@ pub async fn get_valuation(
             sync_valuation(state, asset_address, None, None).await?,
         )),
     }
+}
+
+pub async fn get_valuation_freshness(
+    state: &AppState,
+    asset_address: &str,
+) -> Result<OracleValuationFreshnessResponse, AuthError> {
+    let asset_address = parse_address(asset_address)?;
+    let contract = read_oracle_contract(&state.env)
+        .await
+        .map_err(|error| AuthError::internal("failed to build oracle read contract", error))?;
+    let is_fresh = contract
+        .method::<_, bool>("isValuationFresh", asset_address)
+        .map_err(|error| AuthError::internal("failed to build isValuationFresh call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call isValuationFresh", error))?;
+    let (_, _, updated_at, _) = contract
+        .method::<_, AssetValuationTuple>("getLatestValuation", asset_address)
+        .map_err(|error| AuthError::internal("failed to build getLatestValuation call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call getLatestValuation", error))?;
+    let last_updated_at =
+        if updated_at == 0 {
+            None
+        } else {
+            Some(i64::try_from(updated_at).map_err(|error| {
+                AuthError::internal("oracle valuation timestamp overflow", error)
+            })?)
+        };
+
+    Ok(OracleValuationFreshnessResponse {
+        asset_address: format_address(asset_address),
+        is_fresh,
+        max_age_seconds: MAX_VALUATION_AGE_SECONDS,
+        last_updated_at,
+    })
 }
 
 pub async fn submit_valuation(
@@ -260,6 +299,8 @@ async fn sync_valuation(
     updated_by_user_id: Option<Uuid>,
     last_tx_hash: Option<&str>,
 ) -> Result<OracleValuationRecord, AuthError> {
+    asset_service::get_asset(state, &format_address(asset_address)).await?;
+
     let contract = read_oracle_contract(&state.env)
         .await
         .map_err(|error| AuthError::internal("failed to build oracle read contract", error))?;

@@ -5,7 +5,7 @@ use crate::{
     module::{
         asset::model::{
             AssetCatalogRecord, AssetPriceHistoryRecord, AssetRecord, AssetTagCountRecord,
-            AssetTypeRecord,
+            AssetTypeRecord, PendingRedemptionRecord, UserTradeHistoryRecord,
         },
         auth::error::AuthError,
     },
@@ -25,6 +25,10 @@ mod sql {
     pub const UPSERT_ASSET_CATALOG_ENTRY: &str = include_str!("sql/upsert_asset_catalog_entry.sql");
     pub const INSERT_ASSET_PRICE_HISTORY: &str = include_str!("sql/insert_asset_price_history.sql");
     pub const LIST_ASSET_PRICE_HISTORY: &str = include_str!("sql/list_asset_price_history.sql");
+    pub const INSERT_TRADE_HISTORY: &str = include_str!("sql/insert_trade_history.sql");
+    pub const LIST_USER_TRADE_HISTORY: &str = include_str!("sql/list_user_trade_history.sql");
+    pub const LIST_PENDING_REDEMPTIONS_FOR_ASSET: &str =
+        include_str!("sql/list_pending_redemptions_for_asset.sql");
 }
 
 pub struct AssetListFilters<'a> {
@@ -404,4 +408,55 @@ pub async fn list_asset_price_history(
         .fetch_all(pool)
         .await
         .map_err(AuthError::from)
+}
+
+pub async fn insert_trade_history(
+    pool: &DbPool,
+    user_id: Uuid,
+    wallet_address: &str,
+    asset_address: &str,
+    trade_type: &str,
+    token_amount: &str,
+    payment_amount: &str,
+    price_per_token: &str,
+    tx_hash: &str,
+) -> Result<Option<UserTradeHistoryRecord>, AuthError> {
+    sqlx::query_as::<_, UserTradeHistoryRecord>(sql::INSERT_TRADE_HISTORY)
+        .bind(user_id)
+        .bind(wallet_address)
+        .bind(asset_address)
+        .bind(trade_type)
+        .bind(token_amount)
+        .bind(payment_amount)
+        .bind(price_per_token)
+        .bind(tx_hash)
+        .fetch_optional(pool)
+        .await
+        .map_err(|error| AuthError::internal("failed to insert trade history", error))
+}
+
+pub async fn list_user_trade_history(
+    pool: &DbPool,
+    user_id: Uuid,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<UserTradeHistoryRecord>, AuthError> {
+    sqlx::query_as::<_, UserTradeHistoryRecord>(sql::LIST_USER_TRADE_HISTORY)
+        .bind(user_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| AuthError::internal("failed to list user trade history", error))
+}
+
+pub async fn list_pending_redemptions_for_asset(
+    pool: &DbPool,
+    asset_address: &str,
+) -> Result<Vec<PendingRedemptionRecord>, AuthError> {
+    sqlx::query_as::<_, PendingRedemptionRecord>(sql::LIST_PENDING_REDEMPTIONS_FOR_ASSET)
+        .bind(asset_address)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| AuthError::internal("failed to list pending redemptions for asset", error))
 }

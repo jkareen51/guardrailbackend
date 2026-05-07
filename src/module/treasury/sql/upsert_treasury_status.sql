@@ -5,9 +5,10 @@ INSERT INTO treasury_status_snapshots (
     paused,
     total_tracked_balance,
     total_reserved_yield,
+    total_reserved_redemptions,
     updated_by_user_id,
     last_tx_hash
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (treasury_address) DO UPDATE
 SET
     payment_token_address = EXCLUDED.payment_token_address,
@@ -15,6 +16,7 @@ SET
     paused = EXCLUDED.paused,
     total_tracked_balance = EXCLUDED.total_tracked_balance,
     total_reserved_yield = EXCLUDED.total_reserved_yield,
+    total_reserved_redemptions = EXCLUDED.total_reserved_redemptions,
     updated_by_user_id = EXCLUDED.updated_by_user_id,
     last_tx_hash = COALESCE(EXCLUDED.last_tx_hash, treasury_status_snapshots.last_tx_hash),
     updated_at = NOW()
@@ -25,6 +27,7 @@ RETURNING
     paused,
     total_tracked_balance,
     total_reserved_yield,
+    total_reserved_redemptions,
     updated_by_user_id,
     last_tx_hash,
     created_at,

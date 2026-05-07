@@ -206,6 +206,23 @@ pub async fn unpause_treasury(
     })
 }
 
+pub async fn register_asset_token(
+    state: &AppState,
+    actor_user_id: Uuid,
+    asset_address: &str,
+) -> Result<TreasuryAssetWriteResponse, AuthError> {
+    let asset_address = parse_address(asset_address)?;
+    let tx_hash = send_treasury_transaction::<_, ()>(
+        &state.env,
+        "registerAssetToken",
+        asset_address,
+        "failed to submit registerAssetToken transaction",
+    )
+    .await?;
+
+    treasury_asset_write_response(state, actor_user_id, asset_address, &tx_hash).await
+}
+
 async fn treasury_asset_write_response(
     state: &AppState,
     actor_user_id: Uuid,
@@ -262,6 +279,14 @@ async fn sync_treasury_status(
         .call()
         .await
         .map_err(|error| AuthError::internal("failed to call totalReservedYield", error))?;
+    let total_reserved_redemptions = contract
+        .method::<_, U256>("totalReservedRedemptions", ())
+        .map_err(|error| {
+            AuthError::internal("failed to build totalReservedRedemptions call", error)
+        })?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call totalReservedRedemptions", error))?;
 
     crud::upsert_treasury_status(
         &state.db,
@@ -271,6 +296,7 @@ async fn sync_treasury_status(
         paused,
         &total_tracked_balance.to_string(),
         &total_reserved_yield.to_string(),
+        &total_reserved_redemptions.to_string(),
         updated_by_user_id,
         last_tx_hash,
     )
@@ -299,19 +325,33 @@ async fn sync_treasury_asset(
         .call()
         .await
         .map_err(|error| AuthError::internal("failed to call getReservedYield", error))?;
+    let reserved_redemptions = contract
+        .method::<_, U256>("getReservedRedemptions", asset_address)
+        .map_err(|error| AuthError::internal("failed to build getReservedRedemptions call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call getReservedRedemptions", error))?;
     let available_liquidity = contract
         .method::<_, U256>("getAvailableLiquidity", asset_address)
         .map_err(|error| AuthError::internal("failed to build getAvailableLiquidity call", error))?
         .call()
         .await
         .map_err(|error| AuthError::internal("failed to call getAvailableLiquidity", error))?;
+    let registered_asset_token = contract
+        .method::<_, bool>("registeredAssetTokens", asset_address)
+        .map_err(|error| AuthError::internal("failed to build registeredAssetTokens call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call registeredAssetTokens", error))?;
 
     crud::upsert_treasury_asset(
         &state.db,
         &format_address(asset_address),
         &balance.to_string(),
         &reserved_yield.to_string(),
+        &reserved_redemptions.to_string(),
         &available_liquidity.to_string(),
+        registered_asset_token,
         updated_by_user_id,
         last_tx_hash,
     )

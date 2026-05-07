@@ -87,3 +87,34 @@ pub struct AssetTagCountRecord {
     pub slug: String,
     pub asset_count: i64,
 }
+
+#[derive(Debug, Clone, FromRow)]
+pub struct UserTradeHistoryRecord {
+    pub id: i64,
+    pub user_id: Uuid,
+    pub wallet_address: String,
+    pub asset_address: String,
+    pub trade_type: String,
+    pub token_amount: String,
+    pub payment_amount: String,
+    pub price_per_token: String,
+    pub tx_hash: String,
+    pub executed_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub asset_name: Option<String>,
+    pub asset_symbol: Option<String>,
+    pub asset_image_url: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct PendingRedemptionRecord {
+    pub user_id: Uuid,
+    pub wallet_address: String,
+    pub asset_address: String,
+    pub email: Option<String>,
+    pub display_name: Option<String>,
+    pub last_redemption_at: DateTime<Utc>,
+    pub asset_name: String,
+    pub asset_symbol: String,
+    pub asset_image_url: Option<String>,
+}

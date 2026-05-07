@@ -5,6 +5,65 @@ const COMPLIANCE_REGISTRY_ABI_JSON: &str = r#"
 [
   {
     "type": "function",
+    "name": "addToWhitelist",
+    "inputs": [
+      { "name": "investor", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "removeFromWhitelist",
+    "inputs": [
+      { "name": "investor", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "batchAddToWhitelist",
+    "inputs": [
+      { "name": "investors", "type": "address[]", "internalType": "address[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isWhitelisted",
+    "inputs": [
+      { "name": "investor", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [
+      { "name": "isWhitelisted", "type": "bool", "internalType": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setInvestorStatus",
+    "inputs": [
+      { "name": "investor", "type": "address", "internalType": "address" },
+      { "name": "investorIsAccredited", "type": "bool", "internalType": "bool" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isAccredited",
+    "inputs": [
+      { "name": "investor", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [
+      { "name": "isAccredited", "type": "bool", "internalType": "bool" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "batchSetInvestorData",
     "inputs": [
       { "name": "investors", "type": "address[]", "internalType": "address[]" },
@@ -130,6 +189,15 @@ const COMPLIANCE_REGISTRY_ABI_JSON: &str = r#"
   },
   {
     "type": "function",
+    "name": "getAccessControl",
+    "inputs": [],
+    "outputs": [
+      { "name": "", "type": "address", "internalType": "address" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "setAssetRules",
     "inputs": [
       { "name": "asset", "type": "address", "internalType": "address" },
@@ -179,6 +247,15 @@ const COMPLIANCE_REGISTRY_ABI_JSON: &str = r#"
       { "name": "asset", "type": "address", "internalType": "address" },
       { "name": "jurisdiction", "type": "bytes32", "internalType": "bytes32" },
       { "name": "restricted", "type": "bool", "internalType": "bool" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setAccessControl",
+    "inputs": [
+      { "name": "newAccessControl", "type": "address", "internalType": "address" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"

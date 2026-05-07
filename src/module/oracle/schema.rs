@@ -58,6 +58,14 @@ pub struct OracleValuationResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct OracleValuationFreshnessResponse {
+    pub asset_address: String,
+    pub is_fresh: bool,
+    pub max_age_seconds: i64,
+    pub last_updated_at: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct OracleDocumentResponse {
     pub asset_address: String,
     pub document_type: String,

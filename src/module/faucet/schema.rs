@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct FaucetUsdcRequest {
-    pub amount: Option<String>,
+    #[serde(deserialize_with = "deserialize_amount")]
+    pub amount: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,4 +31,21 @@ pub struct FaucetUsdcBalanceResponse {
     pub address: String,
     pub balance: String,
     pub queried_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum StringOrNumber {
+    String(String),
+    Number(serde_json::Number),
+}
+
+fn deserialize_amount<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    match StringOrNumber::deserialize(deserializer)? {
+        StringOrNumber::String(value) => Ok(value),
+        StringOrNumber::Number(value) => Ok(value.to_string()),
+    }
 }

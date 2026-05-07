@@ -23,6 +23,7 @@ pub struct Environment {
     pub jwt_ttl_hours: i64,
     pub admin_wallet_addresses: Vec<String>,
     pub operator_private_key: Option<String>,
+    pub admin_multisig_address: Option<String>,
     pub monad_rpc_url: String,
     pub monad_rpc_urls: Vec<String>,
     pub monad_chain_id: i64,
@@ -42,7 +43,7 @@ pub struct Environment {
     pub aa_user_operation_timeout_ms: u64,
     pub aa_owner_encryption_key: String,
     pub aa_owner_encryption_key_version: i32,
-    pub faucet_usdc_amount: String,
+    pub payment_token_decimals: u8,
     pub faucet_usdc_cooldown_secs: i64,
     pub open_purchase_auto_whitelist: bool,
     pub filebase_bucket_name: Option<String>,
@@ -81,12 +82,19 @@ impl Environment {
             admin_wallet_addresses: parse_wallet_list_env("ADMIN_WALLET_ADDRESSES")?,
             operator_private_key: optional_env("OPERATOR_PRIVATE_KEY")
                 .or_else(|| optional_env("MONAD_OPERATOR_PRIVATE_KEY")),
+            admin_multisig_address: optional_any_address_env(&[
+                "ADMIN_MULTISIG_ADDRESS",
+                "MULTISIG_ADMIN_ADDRESS",
+            ])?,
             monad_rpc_url,
             monad_rpc_urls,
             monad_chain_id: parse_env("MONAD_CHAIN_ID", 10143)?,
             access_control_address: required_address_env("ACCESS_CONTROL_ADDRESS")?,
             asset_factory_address: required_address_env("ASSET_FACTORY_ADDRESS")?,
-            compliance_registry_address: required_address_env("COMPLIANCE_REGISTRY_ADDRESS")?,
+            compliance_registry_address: required_any_address_env(&[
+                "COMPLIANCE_REGISTRY_ADDRESS",
+                "COMPLIANCE_DIAMOND_ADDRESS",
+            ])?,
             treasury_address: required_address_env("TREASURY_ADDRESS")?,
             oracle_data_bridge_address: required_address_env("ORACLE_DATA_BRIDGE_ADDRESS")?,
             payment_token_address: required_any_address_env(&[
@@ -117,7 +125,7 @@ impl Environment {
             aa_user_operation_timeout_ms: parse_env("AA_USER_OPERATION_TIMEOUT_MS", 120_000)?,
             aa_owner_encryption_key: required_env("AA_OWNER_ENCRYPTION_KEY")?,
             aa_owner_encryption_key_version: parse_env("AA_OWNER_ENCRYPTION_KEY_VERSION", 1)?,
-            faucet_usdc_amount: parse_env("FAUCET_USDC_AMOUNT", "10000000000".to_owned())?,
+            payment_token_decimals: parse_env("PAYMENT_TOKEN_DECIMALS", 6)?,
             faucet_usdc_cooldown_secs: parse_env("FAUCET_USDC_COOLDOWN_SECS", 3600)?,
             open_purchase_auto_whitelist: parse_env("OPEN_PURCHASE_AUTO_WHITELIST", false)?,
             filebase_bucket_name: optional_env("FILEBASE_BUCKET_NAME"),
@@ -248,6 +256,18 @@ fn required_any_address_env(keys: &[&str]) -> Result<String> {
         "missing required env var, expected one of: {}",
         keys.join(", ")
     ))
+}
+
+fn optional_any_address_env(keys: &[&str]) -> Result<Option<String>> {
+    for key in keys {
+        if let Some(raw) = optional_env(key) {
+            return normalize_address(&raw)
+                .map(Some)
+                .map_err(|error| anyhow!("invalid value for env var `{key}`: {error}"));
+        }
+    }
+
+    Ok(None)
 }
 
 fn normalize_address(raw: &str) -> Result<String> {

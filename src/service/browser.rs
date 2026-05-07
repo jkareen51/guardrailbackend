@@ -11,11 +11,11 @@ use crate::{
         asset::{crud as asset_crud, model::AssetRecord},
         auth::{crud as auth_crud, error::AuthError},
         market::schema::{
-            CategoriesResponse, CategorySummaryResponse, EventDetailResponse,
-            EventListResponse, EventMarketsResponse, EventOnChainResponse, EventResponse,
-            ListEventsQuery, MarketListResponse, MarketResponse, MarketsHomeQuery,
-            MarketsHomeResponse, MyPortfolioResponse, PortfolioMarketSummaryResponse,
-            PortfolioSummaryResponse, PositionOutcomeResponse, PublicEventCardResponse,
+            CategoriesResponse, CategorySummaryResponse, EventDetailResponse, EventListResponse,
+            EventMarketsResponse, EventOnChainResponse, EventResponse, ListEventsQuery,
+            MarketListResponse, MarketResponse, MarketsHomeQuery, MarketsHomeResponse,
+            MyPortfolioResponse, PortfolioMarketSummaryResponse, PortfolioSummaryResponse,
+            PortfolioTradeHistoryItemResponse, PositionOutcomeResponse, PublicEventCardResponse,
             PublicEventTeaserResponse, PublicMarketCardResponse, SearchMarketsQuery,
             TagSummaryResponse, TagsResponse,
         },
@@ -173,7 +173,7 @@ pub async fn get_my_portfolio(
             total_sell_amount: "0".to_owned(),
         },
         markets: market_rows,
-        history: Vec::new(),
+        history: load_user_trade_history(state, user_id).await?,
     })
 }
 
@@ -186,16 +186,16 @@ pub async fn list_categories(state: &AppState) -> Result<CategoriesResponse, Aut
         let slug = primary_category_slug(asset);
         let label = label_from_slug(&slug);
 
-        let entry = category_map.entry(slug.clone()).or_insert_with(|| {
-            CategorySummaryResponse {
+        let entry = category_map
+            .entry(slug.clone())
+            .or_insert_with(|| CategorySummaryResponse {
                 slug: slug.clone(),
                 label,
                 event_count: 0,
                 market_count: 0,
                 featured_event_count: 0,
                 breaking_event_count: 0,
-            }
-        });
+            });
 
         entry.event_count += 1;
         entry.market_count += 1;
@@ -224,10 +224,9 @@ pub async fn list_events(
     let offset = normalize_offset(query.offset)?;
     let include_markets = query.include_markets.unwrap_or(false);
     let tag_slug = normalize_optional_text(query.tag_slug);
-    let category_slug = normalize_optional_text(query.category_slug)
-        .map(|v| slugify_text(&v));
-    let subcategory_slug = normalize_optional_text(query.subcategory_slug)
-        .map(|v| slugify_text(&v));
+    let category_slug = normalize_optional_text(query.category_slug).map(|v| slugify_text(&v));
+    let subcategory_slug =
+        normalize_optional_text(query.subcategory_slug).map(|v| slugify_text(&v));
     let featured_filter = query.featured;
     let breaking_filter = query.breaking;
 
@@ -871,4 +870,29 @@ fn format_display_units(value: U256, decimals: usize) -> String {
     } else {
         format!("{whole}.{fractional}")
     }
+}
+
+async fn load_user_trade_history(
+    state: &AppState,
+    user_id: uuid::Uuid,
+) -> Result<Vec<PortfolioTradeHistoryItemResponse>, AuthError> {
+    let records = asset_crud::list_user_trade_history(&state.db, user_id, 50, 0).await?;
+
+    Ok(records
+        .into_iter()
+        .map(|record| PortfolioTradeHistoryItemResponse {
+            id: record.id.to_string(),
+            execution_source: "on_chain".to_owned(),
+            trade_type: record.trade_type,
+            asset_address: record.asset_address,
+            asset_name: record.asset_name.unwrap_or_default(),
+            asset_symbol: record.asset_symbol.unwrap_or_default(),
+            asset_image_url: record.asset_image_url,
+            token_amount: record.token_amount,
+            payment_amount: record.payment_amount,
+            price_per_token: record.price_per_token,
+            tx_hash: record.tx_hash,
+            executed_at: record.executed_at,
+        })
+        .collect())
 }

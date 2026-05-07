@@ -11,8 +11,8 @@ use crate::{
             AdminAnchorDocumentRequest, AdminSetTrustedOracleRequest,
             AdminSubmitValuationAndSyncPricingRequest, AdminSubmitValuationRequest,
             OracleDocumentResponse, OracleDocumentWriteResponse, OracleTrustedOracleResponse,
-            OracleTrustedOracleWriteResponse, OracleValuationResponse,
-            OracleValuationWriteResponse,
+            OracleTrustedOracleWriteResponse, OracleValuationFreshnessResponse,
+            OracleValuationResponse, OracleValuationWriteResponse,
         },
     },
     service::{jwt::AuthenticatedUser, oracle},
@@ -32,6 +32,15 @@ pub async fn get_valuation(
     Path(asset_address): Path<String>,
 ) -> Result<Json<OracleValuationResponse>, AuthError> {
     Ok(Json(oracle::get_valuation(&state, &asset_address).await?))
+}
+
+pub async fn get_valuation_freshness(
+    State(state): State<AppState>,
+    Path(asset_address): Path<String>,
+) -> Result<Json<OracleValuationFreshnessResponse>, AuthError> {
+    Ok(Json(
+        oracle::get_valuation_freshness(&state, &asset_address).await?,
+    ))
 }
 
 pub async fn get_document(

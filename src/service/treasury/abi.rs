@@ -8,6 +8,7 @@ const TREASURY_ABI_JSON: &str = r#"
   { "type": "function", "name": "paused", "inputs": [], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },
   { "type": "function", "name": "totalTrackedBalance", "inputs": [], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
   { "type": "function", "name": "totalReservedYield", "inputs": [], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
+  { "type": "function", "name": "totalReservedRedemptions", "inputs": [], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
   { "type": "function", "name": "depositAssetLiquidity", "inputs": [
     { "name": "asset", "type": "address", "internalType": "address" },
     { "name": "amount", "type": "uint256", "internalType": "uint256" }
@@ -34,9 +35,18 @@ const TREASURY_ABI_JSON: &str = r#"
   { "type": "function", "name": "getReservedYield", "inputs": [
     { "name": "asset", "type": "address", "internalType": "address" }
   ], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
+  { "type": "function", "name": "getReservedRedemptions", "inputs": [
+    { "name": "asset", "type": "address", "internalType": "address" }
+  ], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
   { "type": "function", "name": "getAvailableLiquidity", "inputs": [
     { "name": "asset", "type": "address", "internalType": "address" }
   ], "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }], "stateMutability": "view" },
+  { "type": "function", "name": "registeredAssetTokens", "inputs": [
+    { "name": "token", "type": "address", "internalType": "address" }
+  ], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },
+  { "type": "function", "name": "registerAssetToken", "inputs": [
+    { "name": "token", "type": "address", "internalType": "address" }
+  ], "outputs": [], "stateMutability": "nonpayable" },
   { "type": "function", "name": "pause", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
   { "type": "function", "name": "unpause", "inputs": [], "outputs": [], "stateMutability": "nonpayable" }
 ]

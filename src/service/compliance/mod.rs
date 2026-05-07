@@ -17,12 +17,15 @@ use crate::{
             crud,
             schema::{
                 AdminBatchUpsertComplianceInvestorsRequest,
+                AdminBatchWhitelistComplianceInvestorsRequest,
                 AdminComplianceAssetRulesUpsertResponse,
                 AdminComplianceInvestorBatchUpsertResponse, AdminComplianceInvestorUpsertResponse,
                 AdminComplianceJurisdictionRestrictionUpsertResponse,
-                AdminSetComplianceAssetRulesRequest,
+                AdminSetComplianceAccessControlRequest, AdminSetComplianceAssetRulesRequest,
+                AdminSetComplianceInvestorStatusRequest,
                 AdminSetComplianceJurisdictionRestrictionRequest,
-                AdminUpsertComplianceInvestorRequest, ComplianceAssetRulesResponse,
+                AdminUpsertComplianceInvestorRequest, ComplianceAccessControlResponse,
+                ComplianceAccessControlWriteResponse, ComplianceAssetRulesResponse,
                 ComplianceCheckRedeemRequest, ComplianceCheckResponse,
                 ComplianceCheckSubscribeRequest, ComplianceCheckTransferRequest,
                 ComplianceInvestorResponse, ComplianceJurisdictionRestrictionResponse,
@@ -106,6 +109,90 @@ pub async fn auto_allow_investor_for_open_purchase(
     .await?;
 
     Ok(ComplianceInvestorResponse::from_record(record))
+}
+
+pub async fn add_investor_to_whitelist(
+    state: &AppState,
+    actor_user_id: Uuid,
+    wallet_address: &str,
+) -> Result<AdminComplianceInvestorUpsertResponse, AuthError> {
+    let wallet = parse_address(wallet_address)?;
+    let tx_hash = write_whitelist_action(
+        &state.env,
+        "addToWhitelist",
+        wallet,
+        "failed to submit addToWhitelist transaction",
+    )
+    .await?;
+    let investor = sync_investor(state, wallet, Some(actor_user_id), Some(&tx_hash)).await?;
+
+    Ok(AdminComplianceInvestorUpsertResponse {
+        tx_hash,
+        investor: ComplianceInvestorResponse::from_record(investor),
+    })
+}
+
+pub async fn remove_investor_from_whitelist(
+    state: &AppState,
+    actor_user_id: Uuid,
+    wallet_address: &str,
+) -> Result<AdminComplianceInvestorUpsertResponse, AuthError> {
+    let wallet = parse_address(wallet_address)?;
+    let tx_hash = write_whitelist_action(
+        &state.env,
+        "removeFromWhitelist",
+        wallet,
+        "failed to submit removeFromWhitelist transaction",
+    )
+    .await?;
+    let investor = sync_investor(state, wallet, Some(actor_user_id), Some(&tx_hash)).await?;
+
+    Ok(AdminComplianceInvestorUpsertResponse {
+        tx_hash,
+        investor: ComplianceInvestorResponse::from_record(investor),
+    })
+}
+
+pub async fn batch_add_investors_to_whitelist(
+    state: &AppState,
+    actor_user_id: Uuid,
+    payload: AdminBatchWhitelistComplianceInvestorsRequest,
+) -> Result<AdminComplianceInvestorBatchUpsertResponse, AuthError> {
+    if payload.wallet_addresses.is_empty() {
+        return Err(AuthError::bad_request(
+            "wallet_addresses batch cannot be empty",
+        ));
+    }
+
+    let mut wallets = Vec::with_capacity(payload.wallet_addresses.len());
+    for wallet_address in &payload.wallet_addresses {
+        wallets.push(parse_address(wallet_address)?);
+    }
+
+    let tx_hash = write_batch_add_to_whitelist(&state.env, wallets.clone()).await?;
+    let mut investors = Vec::with_capacity(wallets.len());
+    for wallet in wallets {
+        let investor = sync_investor(state, wallet, Some(actor_user_id), Some(&tx_hash)).await?;
+        investors.push(ComplianceInvestorResponse::from_record(investor));
+    }
+
+    Ok(AdminComplianceInvestorBatchUpsertResponse { tx_hash, investors })
+}
+
+pub async fn set_investor_status(
+    state: &AppState,
+    actor_user_id: Uuid,
+    wallet_address: &str,
+    payload: AdminSetComplianceInvestorStatusRequest,
+) -> Result<AdminComplianceInvestorUpsertResponse, AuthError> {
+    let wallet = parse_address(wallet_address)?;
+    let tx_hash = write_set_investor_status(&state.env, wallet, payload.is_accredited).await?;
+    let investor = sync_investor(state, wallet, Some(actor_user_id), Some(&tx_hash)).await?;
+
+    Ok(AdminComplianceInvestorUpsertResponse {
+        tx_hash,
+        investor: ComplianceInvestorResponse::from_record(investor),
+    })
 }
 
 pub async fn batch_upsert_investors(
@@ -307,6 +394,37 @@ pub async fn get_asset_rules(
     Ok(ComplianceAssetRulesResponse::from(record))
 }
 
+pub async fn get_access_control(
+    state: &AppState,
+) -> Result<ComplianceAccessControlResponse, AuthError> {
+    let access_control_address =
+        read_access_control_from_chain(&state.env)
+            .await
+            .map_err(|error| {
+                AuthError::internal("failed to read compliance access control from chain", error)
+            })?;
+
+    Ok(ComplianceAccessControlResponse {
+        compliance_address: state.env.compliance_registry_address.clone(),
+        access_control_address: format_address(access_control_address),
+    })
+}
+
+pub async fn set_access_control(
+    state: &AppState,
+    _actor_user_id: Uuid,
+    payload: AdminSetComplianceAccessControlRequest,
+) -> Result<ComplianceAccessControlWriteResponse, AuthError> {
+    let access_control_address = parse_address(&payload.access_control_address)?;
+    let tx_hash = write_set_access_control(&state.env, access_control_address).await?;
+    let compliance = get_access_control(state).await?;
+
+    Ok(ComplianceAccessControlWriteResponse {
+        tx_hash,
+        compliance,
+    })
+}
+
 pub async fn get_jurisdiction_restriction(
     state: &AppState,
     asset_address: &str,
@@ -450,6 +568,55 @@ async fn write_set_investor_data(
     wait_for_receipt(pending).await
 }
 
+async fn write_whitelist_action(
+    env: &Environment,
+    method: &str,
+    wallet: Address,
+    error_context: &'static str,
+) -> Result<String, AuthError> {
+    let contract = write_contract(env).await?;
+    let call = contract
+        .method::<_, ()>(method, wallet)
+        .map_err(|error| AuthError::internal("failed to build whitelist action call", error))?;
+    let pending = call
+        .send()
+        .await
+        .map_err(|error| AuthError::internal(error_context, error))?;
+
+    wait_for_receipt(pending).await
+}
+
+async fn write_batch_add_to_whitelist(
+    env: &Environment,
+    wallets: Vec<Address>,
+) -> Result<String, AuthError> {
+    let contract = write_contract(env).await?;
+    let call = contract
+        .method::<_, ()>("batchAddToWhitelist", wallets)
+        .map_err(|error| AuthError::internal("failed to build batchAddToWhitelist call", error))?;
+    let pending = call.send().await.map_err(|error| {
+        AuthError::internal("failed to submit batchAddToWhitelist transaction", error)
+    })?;
+
+    wait_for_receipt(pending).await
+}
+
+async fn write_set_investor_status(
+    env: &Environment,
+    wallet: Address,
+    is_accredited: bool,
+) -> Result<String, AuthError> {
+    let contract = write_contract(env).await?;
+    let call = contract
+        .method::<_, ()>("setInvestorStatus", (wallet, is_accredited))
+        .map_err(|error| AuthError::internal("failed to build setInvestorStatus call", error))?;
+    let pending = call.send().await.map_err(|error| {
+        AuthError::internal("failed to submit setInvestorStatus transaction", error)
+    })?;
+
+    wait_for_receipt(pending).await
+}
+
 async fn write_batch_set_investor_data(
     env: &Environment,
     wallets: Vec<Address>,
@@ -507,6 +674,21 @@ async fn write_set_jurisdiction_restriction(
     wait_for_receipt(pending).await
 }
 
+async fn write_set_access_control(
+    env: &Environment,
+    access_control: Address,
+) -> Result<String, AuthError> {
+    let contract = write_contract(env).await?;
+    let call = contract
+        .method::<_, ()>("setAccessControl", access_control)
+        .map_err(|error| AuthError::internal("failed to build setAccessControl call", error))?;
+    let pending = call.send().await.map_err(|error| {
+        AuthError::internal("failed to submit setAccessControl transaction", error)
+    })?;
+
+    wait_for_receipt(pending).await
+}
+
 async fn read_investor_from_chain(env: &Environment, wallet: Address) -> Result<InvestorDataTuple> {
     let contract = read_contract(env).await?;
     contract
@@ -536,6 +718,15 @@ async fn read_jurisdiction_restriction_from_chain(
         .call()
         .await
         .context("failed to call isJurisdictionRestricted")
+}
+
+async fn read_access_control_from_chain(env: &Environment) -> Result<Address> {
+    let contract = read_contract(env).await?;
+    contract
+        .method::<_, Address>("getAccessControl", ())?
+        .call()
+        .await
+        .context("failed to call getAccessControl")
 }
 
 async fn read_check_subscribe(
@@ -751,6 +942,32 @@ fn format_h256(value: H256) -> String {
 
 fn u256_to_string(value: U256) -> String {
     value.to_string()
+}
+
+async fn sync_investor(
+    state: &AppState,
+    wallet: Address,
+    updated_by_user_id: Option<Uuid>,
+    last_tx_hash: Option<&str>,
+) -> Result<crate::module::compliance::model::ComplianceInvestorRecord, AuthError> {
+    let (is_verified, is_accredited, is_frozen, valid_until, jurisdiction, external_ref) =
+        read_investor_from_chain(&state.env, wallet)
+            .await
+            .map_err(|error| AuthError::internal("failed to read investor from chain", error))?;
+
+    crud::upsert_investor(
+        &state.db,
+        &format_address(wallet),
+        is_verified,
+        is_accredited,
+        is_frozen,
+        u64_to_i64(valid_until, "valid_until")?,
+        &format_h256(jurisdiction),
+        &format_h256(external_ref),
+        updated_by_user_id,
+        last_tx_hash,
+    )
+    .await
 }
 
 fn bytes32_reason(value: H256) -> String {

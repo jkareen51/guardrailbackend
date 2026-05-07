@@ -32,6 +32,11 @@ pub struct AdminBatchUpsertComplianceInvestorsRequest {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub struct AdminBatchWhitelistComplianceInvestorsRequest {
+    pub wallet_addresses: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct AdminSetComplianceAssetRulesRequest {
     pub transfers_enabled: bool,
     pub subscriptions_enabled: bool,
@@ -44,6 +49,16 @@ pub struct AdminSetComplianceAssetRulesRequest {
 #[derive(Debug, Deserialize, Clone)]
 pub struct AdminSetComplianceJurisdictionRestrictionRequest {
     pub restricted: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AdminSetComplianceInvestorStatusRequest {
+    pub is_accredited: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AdminSetComplianceAccessControlRequest {
+    pub access_control_address: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -119,6 +134,18 @@ pub struct AdminComplianceInvestorUpsertResponse {
 pub struct AdminComplianceInvestorBatchUpsertResponse {
     pub tx_hash: String,
     pub investors: Vec<ComplianceInvestorResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ComplianceAccessControlResponse {
+    pub compliance_address: String,
+    pub access_control_address: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ComplianceAccessControlWriteResponse {
+    pub tx_hash: String,
+    pub compliance: ComplianceAccessControlResponse,
 }
 
 #[derive(Debug, Serialize)]

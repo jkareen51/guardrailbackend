@@ -4,8 +4,9 @@ use anyhow::{Result, anyhow};
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use ethers_contract::Contract;
 use ethers_core::{
-    abi::{Detokenize, Token, Tokenize, encode},
+    abi::{AbiParser, Detokenize, Token, Tokenize, encode},
     types::{Address, Bytes, H256, U256},
+    utils::keccak256,
 };
 use ethers_middleware::SignerMiddleware;
 use ethers_providers::{Http, Provider};
@@ -27,16 +28,18 @@ use crate::{
                 AdminSetAssetComplianceRegistryRequest, AdminSetAssetMetadataRequest,
                 AdminSetAssetPriceRequest, AdminSetAssetPricingRequest,
                 AdminSetAssetSelfServicePurchaseRequest, AdminSetAssetStateRequest,
-                AdminSetAssetTreasuryRequest, AssetArchiveWriteResponse, AssetCatalogWriteResponse,
-                AssetDetailQuery, AssetDetailResponse, AssetFactoryStatusResponse,
-                AssetFactoryWriteResponse, AssetHistoryCandleResponse, AssetHistoryQuery,
-                AssetHistoryResponse, AssetHolderStateResponse, AssetListResponse,
-                AssetPreviewRequest, AssetPreviewResponse, AssetResponse,
-                AssetTransferCheckResponse, AssetTypeListResponse, AssetTypeResponse,
-                AssetTypeWriteResponse, AssetWriteResponse, GaslessApprovePaymentTokenRequest,
-                GaslessAssetActionResponse, GaslessCancelRedemptionRequest,
-                GaslessClaimYieldRequest, GaslessPurchaseAssetRequest, GaslessRedeemAssetRequest,
-                ListAssetsQuery,
+                AdminSetAssetTreasuryRequest, AdminSetFactoryComplianceRegistryRequest,
+                AdminSetFactoryTreasuryRequest, AssetArchiveWriteResponse,
+                AssetCatalogWriteResponse, AssetDetailQuery, AssetDetailResponse,
+                AssetFactoryStatusResponse, AssetFactoryWriteResponse, AssetHistoryCandleResponse,
+                AssetHistoryQuery, AssetHistoryResponse, AssetHolderStateResponse,
+                AssetListResponse, AssetPendingRedemptionsResponse, AssetPreviewRequest,
+                AssetPreviewResponse, AssetResponse, AssetTransferCheckResponse,
+                AssetTypeListResponse, AssetTypeResponse, AssetTypeWriteResponse,
+                AssetWriteResponse, GaslessApprovePaymentTokenRequest, GaslessAssetActionResponse,
+                GaslessCancelRedemptionRequest, GaslessClaimYieldRequest,
+                GaslessPurchaseAssetRequest, GaslessRedeemAssetRequest, ListAssetsQuery,
+                PendingRedemptionItem,
             },
         },
         auth::{crud as auth_crud, error::AuthError},
@@ -120,6 +123,14 @@ struct HistorySample {
     value: Decimal,
 }
 
+#[derive(Debug, sqlx::FromRow)]
+struct WalletAccountLookup {
+    user_id: Uuid,
+    wallet_address: String,
+    email: Option<String>,
+    display_name: Option<String>,
+}
+
 struct NormalizedAssetListQuery {
     asset_type_id: Option<String>,
     q: Option<String>,
@@ -179,6 +190,12 @@ pub async fn register_asset_type(
     actor_user_id: Uuid,
     payload: AdminRegisterAssetTypeRequest,
 ) -> Result<AssetTypeWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[("ADMIN_ROLE", role_hash("ADMIN_ROLE"))],
+        "register asset types",
+    )
+    .await?;
     let asset_type_id = parse_bytes32_input(&payload.asset_type_id, "asset_type_id")?;
     let implementation_address = parse_address(&payload.implementation_address)?;
     let asset_type_id_hex = format_h256(asset_type_id);
@@ -244,6 +261,12 @@ pub async fn unregister_asset_type(
     actor_user_id: Uuid,
     asset_type_id: &str,
 ) -> Result<AssetTypeWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[("ADMIN_ROLE", role_hash("ADMIN_ROLE"))],
+        "unregister asset types",
+    )
+    .await?;
     let asset_type_id = parse_bytes32_input(asset_type_id, "asset_type_id")?;
 
     let tx_hash = send_factory_transaction::<_, ()>(
@@ -266,6 +289,12 @@ pub async fn pause_factory(
     state: &AppState,
     _actor_user_id: Uuid,
 ) -> Result<AssetFactoryWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[("ADMIN_ROLE", role_hash("ADMIN_ROLE"))],
+        "pause the asset factory",
+    )
+    .await?;
     let tx_hash = send_factory_transaction::<_, ()>(
         &state.env,
         "pauseFactory",
@@ -282,6 +311,12 @@ pub async fn unpause_factory(
     state: &AppState,
     _actor_user_id: Uuid,
 ) -> Result<AssetFactoryWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[("ADMIN_ROLE", role_hash("ADMIN_ROLE"))],
+        "unpause the asset factory",
+    )
+    .await?;
     let tx_hash = send_factory_transaction::<_, ()>(
         &state.env,
         "unpauseFactory",
@@ -294,11 +329,70 @@ pub async fn unpause_factory(
     Ok(AssetFactoryWriteResponse { tx_hash, factory })
 }
 
+pub async fn set_factory_compliance_registry(
+    state: &AppState,
+    _actor_user_id: Uuid,
+    payload: AdminSetFactoryComplianceRegistryRequest,
+) -> Result<AssetFactoryWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[("ADMIN_ROLE", role_hash("ADMIN_ROLE"))],
+        "update the asset factory compliance registry",
+    )
+    .await?;
+    let compliance_registry_address = parse_address(&payload.compliance_registry_address)?;
+
+    let tx_hash = send_factory_transaction::<_, ()>(
+        &state.env,
+        "setComplianceRegistry",
+        compliance_registry_address,
+        "failed to submit setComplianceRegistry factory transaction",
+    )
+    .await?;
+
+    let factory = get_factory_status(state).await?;
+    Ok(AssetFactoryWriteResponse { tx_hash, factory })
+}
+
+pub async fn set_factory_treasury(
+    state: &AppState,
+    _actor_user_id: Uuid,
+    payload: AdminSetFactoryTreasuryRequest,
+) -> Result<AssetFactoryWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[("ADMIN_ROLE", role_hash("ADMIN_ROLE"))],
+        "update the asset factory treasury",
+    )
+    .await?;
+    let treasury_address = parse_address(&payload.treasury_address)?;
+
+    let tx_hash = send_factory_transaction::<_, ()>(
+        &state.env,
+        "setTreasury",
+        treasury_address,
+        "failed to submit setTreasury factory transaction",
+    )
+    .await?;
+
+    let factory = get_factory_status(state).await?;
+    Ok(AssetFactoryWriteResponse { tx_hash, factory })
+}
+
 pub async fn create_asset(
     state: &AppState,
     actor_user_id: Uuid,
     payload: AdminCreateAssetRequest,
 ) -> Result<AssetWriteResponse, AuthError> {
+    ensure_factory_signer_has_any_role(
+        &state.env,
+        &[
+            ("ISSUER_ROLE", role_hash("ISSUER_ROLE")),
+            ("ADMIN_ROLE", role_hash("ADMIN_ROLE")),
+        ],
+        "create assets",
+    )
+    .await?;
     let proposal_id = parse_u256(&payload.proposal_id, "proposal_id")?;
     let asset_type_id = parse_bytes32_input(&payload.asset_type_id, "asset_type_id")?;
     let max_supply = parse_u256(&payload.max_supply, "max_supply")?;
@@ -1271,34 +1365,13 @@ pub async fn process_redemption(
     asset_address: &str,
     payload: AdminProcessRedemptionRequest,
 ) -> Result<AssetWriteResponse, AuthError> {
-    let asset_address = parse_address(asset_address)?;
-    let investor_wallet = parse_address(&payload.investor_wallet)?;
-    let amount = parse_u256(&payload.amount, "amount")?;
-    let recipient_wallet = parse_address(&payload.recipient_wallet)?;
-    let data = parse_bytes_input(payload.data.as_deref(), "data")?;
-
-    let tx_hash = send_asset_transaction::<_, U256>(
-        &state.env,
-        asset_address,
-        "processRedemption",
-        (investor_wallet, amount, recipient_wallet, data),
-        "failed to submit processRedemption transaction",
-    )
-    .await?;
-
-    let asset = sync_asset(
-        state,
-        asset_address,
-        None,
-        Some(actor_user_id),
-        Some(&tx_hash),
-    )
-    .await?;
-
-    Ok(AssetWriteResponse {
-        tx_hash,
-        asset: AssetResponse::from(asset),
-    })
+    let _ = state;
+    let _ = actor_user_id;
+    let _ = asset_address;
+    let _ = payload;
+    Err(AuthError::bad_request(
+        "manual redemption processing is disabled in the deployed asset token; use /assets/{asset_address}/redeem instead",
+    ))
 }
 
 pub async fn approve_payment_token(
@@ -1406,6 +1479,20 @@ pub async fn purchase_asset(
     let asset_record = sync_asset(state, asset_address, None, None, Some(&tx_hash)).await?;
     let holder = read_asset_holder_snapshot_from_chain(&state.env, asset_address, wallet).await?;
 
+    // Log trade history
+    let _ = crud::insert_trade_history(
+        &state.db,
+        user_id,
+        &format_address(wallet),
+        &format_address(asset_address),
+        "purchase",
+        &token_amount.to_string(),
+        &payment_token_cost.to_string(),
+        &asset_record.price_per_token,
+        &tx_hash,
+    )
+    .await;
+
     Ok(GaslessAssetActionResponse {
         tx_hash,
         asset: AssetResponse::from(asset_record),
@@ -1473,6 +1560,23 @@ pub async fn redeem_asset(
     let asset_record = sync_asset(state, asset_address, None, None, Some(&tx_hash)).await?;
     let holder = read_asset_holder_snapshot_from_chain(&state.env, asset_address, wallet).await?;
 
+    // Calculate payment amount for history
+    let redemption_value = read_asset_preview_redemption(&state.env, asset_address, amount).await?;
+
+    // Log trade history
+    let _ = crud::insert_trade_history(
+        &state.db,
+        user_id,
+        &format_address(wallet),
+        &format_address(asset_address),
+        "redemption",
+        &amount.to_string(),
+        &redemption_value.to_string(),
+        &asset_record.redemption_price_per_token,
+        &tx_hash,
+    )
+    .await;
+
     Ok(GaslessAssetActionResponse {
         tx_hash,
         asset: AssetResponse::from(asset_record),
@@ -1486,31 +1590,13 @@ pub async fn cancel_redemption(
     asset_address: &str,
     payload: GaslessCancelRedemptionRequest,
 ) -> Result<GaslessAssetActionResponse, AuthError> {
-    let asset_address = parse_address(asset_address)?;
-    let wallet = user_wallet_for_action(&state.db, user_id).await?;
-    let amount = parse_u256(&payload.amount, "amount")?;
-    let call_data =
-        build_asset_calldata::<_, bool>(&state.env, asset_address, "cancelRedemption", amount)
-            .await?;
-    let tx_hash = gasless::submit_user_calls(
-        state,
-        user_id,
-        vec![
-            gasless::target_call(asset_address, call_data).map_err(|error| {
-                AuthError::internal("failed to build cancelRedemption call", error)
-            })?,
-        ],
-    )
-    .await?;
-
-    let asset_record = sync_asset(state, asset_address, None, None, Some(&tx_hash)).await?;
-    let holder = read_asset_holder_snapshot_from_chain(&state.env, asset_address, wallet).await?;
-
-    Ok(GaslessAssetActionResponse {
-        tx_hash,
-        asset: AssetResponse::from(asset_record),
-        holder: asset_holder_response(&format_address(asset_address), holder),
-    })
+    let _ = state;
+    let _ = user_id;
+    let _ = asset_address;
+    let _ = payload;
+    Err(AuthError::bad_request(
+        "manual redemption cancellation is disabled in the deployed asset token; redemptions settle atomically during /assets/{asset_address}/redeem",
+    ))
 }
 
 async fn sync_asset_type(
@@ -2120,6 +2206,7 @@ fn factory_status_response(
     AssetFactoryStatusResponse {
         factory_address: env.asset_factory_address.clone(),
         access_control_address: snapshot.access_control_address,
+        compliance_diamond_address: snapshot.compliance_registry_address.clone(),
         compliance_registry_address: snapshot.compliance_registry_address,
         treasury_address: snapshot.treasury_address,
         paused: snapshot.paused,
@@ -2574,6 +2661,60 @@ fn normalize_optional_text(raw: Option<&str>) -> Option<String> {
     })
 }
 
+async fn ensure_factory_signer_has_any_role(
+    env: &Environment,
+    roles: &[(&'static str, H256)],
+    action: &'static str,
+) -> Result<(), AuthError> {
+    let signer = admin_signer(env).await?;
+    let signer_address = signer.address();
+    let factory = read_factory_contract(env).await.map_err(|error| {
+        AuthError::internal("failed to build asset factory read contract", error)
+    })?;
+    let access_control_address = factory
+        .method::<_, Address>("accessControl", ())
+        .map_err(|error| AuthError::internal("failed to build factory accessControl call", error))?
+        .call()
+        .await
+        .map_err(|error| AuthError::internal("failed to call factory accessControl", error))?;
+    let access_control = read_access_control_contract(env, access_control_address).await?;
+
+    for (_, role) in roles {
+        let has_role = access_control
+            .method::<_, bool>("hasRole", (*role, signer_address))
+            .map_err(|error| {
+                AuthError::internal("failed to build accessControl hasRole call", error)
+            })?
+            .call()
+            .await
+            .map_err(|error| AuthError::internal("failed to call accessControl hasRole", error))?;
+        if has_role {
+            return Ok(());
+        }
+    }
+
+    let required_roles = roles
+        .iter()
+        .map(|(label, _)| *label)
+        .collect::<Vec<_>>()
+        .join(" or ");
+    tracing::warn!(
+        signer_address = %format_address(signer_address),
+        access_control_address = %format_address(access_control_address),
+        required_roles,
+        action,
+        "backend signer lacks required factory role"
+    );
+
+    Err(AuthError::forbidden(format!(
+        "backend signer {} lacks {} on access control {} required to {}",
+        format_address(signer_address),
+        required_roles,
+        format_address(access_control_address),
+        action,
+    )))
+}
+
 fn normalize_catalog_tags(raw: &[String]) -> Vec<String> {
     normalize_string_list_with(raw, |value| value.to_ascii_lowercase())
 }
@@ -2632,6 +2773,20 @@ async fn read_factory_contract(env: &Environment) -> Result<Contract<Provider<Ht
         asset_factory_abi()?,
         provider,
     ))
+}
+
+async fn read_access_control_contract(
+    env: &Environment,
+    access_control_address: Address,
+) -> Result<Contract<Provider<Http>>, AuthError> {
+    let provider = rpc::monad_provider_arc(env)
+        .await
+        .map_err(|error| AuthError::internal("failed to build access control provider", error))?;
+    let abi = AbiParser::default()
+        .parse(&["function hasRole(bytes32 role, address account) view returns (bool)"])
+        .map_err(|error| AuthError::internal("failed to build access control ABI", error))?;
+
+    Ok(Contract::new(access_control_address, abi, provider))
 }
 
 async fn write_factory_contract(
@@ -2702,6 +2857,10 @@ where
     wait_for_receipt(pending).await
 }
 
+fn role_hash(value: &str) -> H256 {
+    H256::from(keccak256(value.as_bytes()))
+}
+
 async fn send_asset_transaction<T, D>(
     env: &Environment,
     asset_address: Address,
@@ -2763,4 +2922,76 @@ where
         .map_err(|error| AuthError::internal("failed to build ERC20 calldata", error))?
         .calldata()
         .ok_or_else(|| AuthError::internal("missing ERC20 calldata", anyhow!("no calldata")))
+}
+
+pub async fn list_pending_redemptions(
+    state: &AppState,
+    asset_address: &str,
+) -> Result<AssetPendingRedemptionsResponse, AuthError> {
+    let asset_address_parsed = parse_address(asset_address)?;
+    let asset_address_string = format_address(asset_address_parsed);
+
+    // Get asset info
+    let asset_record = crud::get_asset(&state.db, state.env.monad_chain_id, &asset_address_string)
+        .await?
+        .ok_or_else(|| AuthError::not_found("asset not found"))?;
+
+    // Get ALL wallet accounts (users who might have this asset)
+    let all_wallets = sqlx::query_as::<_, WalletAccountLookup>(
+        "SELECT DISTINCT wa.user_id, wa.wallet_address, u.email, u.display_name
+         FROM wallet_accounts wa
+         JOIN users u ON wa.user_id = u.id
+         ORDER BY wa.wallet_address ASC",
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|error| AuthError::internal("failed to fetch wallet accounts", error))?;
+
+    // Query blockchain for each wallet's pending redemption
+    let mut pending_redemptions = Vec::new();
+
+    for wallet_record in all_wallets {
+        let wallet_address = match parse_address(&wallet_record.wallet_address) {
+            Ok(addr) => addr,
+            Err(_) => continue, // Skip invalid addresses
+        };
+
+        // Query blockchain for actual pending amount
+        match read_asset_holder_snapshot_from_chain(
+            &state.env,
+            asset_address_parsed,
+            wallet_address,
+        )
+        .await
+        {
+            Ok(holder) => {
+                let pending_amount = match U256::from_dec_str(&holder.pending_redemption) {
+                    Ok(amount) => amount,
+                    Err(_) => continue,
+                };
+
+                // Only include if they actually have pending redemptions
+                if pending_amount > U256::zero() {
+                    pending_redemptions.push(PendingRedemptionItem {
+                        user_id: wallet_record.user_id.to_string(),
+                        wallet_address: wallet_record.wallet_address,
+                        email: wallet_record.email,
+                        display_name: wallet_record.display_name,
+                        pending_amount: pending_amount.to_string(),
+                        last_redemption_at: Utc::now(), // We don't have this info without trade history
+                    });
+                }
+            }
+            Err(_) => continue, // Skip wallets that don't hold this asset
+        }
+    }
+
+    Ok(AssetPendingRedemptionsResponse {
+        asset_address: asset_address_string,
+        asset_name: asset_record.name,
+        asset_symbol: asset_record.symbol,
+        asset_image_url: asset_record.image_url,
+        total_pending_redemptions: asset_record.total_pending_redemptions,
+        pending_redemptions,
+    })
 }

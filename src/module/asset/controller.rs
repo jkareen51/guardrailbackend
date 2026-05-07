@@ -12,14 +12,16 @@ use crate::{
             AdminSetAssetCatalogRequest, AdminSetAssetComplianceRegistryRequest,
             AdminSetAssetMetadataRequest, AdminSetAssetPriceRequest, AdminSetAssetPricingRequest,
             AdminSetAssetSelfServicePurchaseRequest, AdminSetAssetStateRequest,
-            AdminSetAssetTreasuryRequest, AssetArchiveWriteResponse, AssetCatalogWriteResponse,
+            AdminSetAssetTreasuryRequest, AdminSetFactoryComplianceRegistryRequest,
+            AdminSetFactoryTreasuryRequest, AssetArchiveWriteResponse, AssetCatalogWriteResponse,
             AssetDetailQuery, AssetDetailResponse, AssetFactoryStatusResponse,
             AssetFactoryWriteResponse, AssetHistoryQuery, AssetHistoryResponse,
-            AssetHolderStateResponse, AssetListResponse, AssetPreviewRequest, AssetPreviewResponse,
-            AssetResponse, AssetTransferCheckResponse, AssetTypeListResponse, AssetTypeResponse,
-            AssetTypeWriteResponse, AssetWriteResponse, GaslessApprovePaymentTokenRequest,
-            GaslessAssetActionResponse, GaslessCancelRedemptionRequest, GaslessClaimYieldRequest,
-            GaslessPurchaseAssetRequest, GaslessRedeemAssetRequest, ListAssetsQuery,
+            AssetHolderStateResponse, AssetListResponse, AssetPendingRedemptionsResponse,
+            AssetPreviewRequest, AssetPreviewResponse, AssetResponse, AssetTransferCheckResponse,
+            AssetTypeListResponse, AssetTypeResponse, AssetTypeWriteResponse, AssetWriteResponse,
+            GaslessApprovePaymentTokenRequest, GaslessAssetActionResponse,
+            GaslessCancelRedemptionRequest, GaslessClaimYieldRequest, GaslessPurchaseAssetRequest,
+            GaslessRedeemAssetRequest, ListAssetsQuery,
         },
         auth::error::AuthError,
     },
@@ -218,6 +220,26 @@ pub async fn unpause_factory(
 ) -> Result<Json<AssetFactoryWriteResponse>, AuthError> {
     Ok(Json(
         asset::unpause_factory(&state, authenticated_user.user_id).await?,
+    ))
+}
+
+pub async fn set_factory_compliance_registry(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Json(payload): Json<AdminSetFactoryComplianceRegistryRequest>,
+) -> Result<Json<AssetFactoryWriteResponse>, AuthError> {
+    Ok(Json(
+        asset::set_factory_compliance_registry(&state, authenticated_user.user_id, payload).await?,
+    ))
+}
+
+pub async fn set_factory_treasury(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Json(payload): Json<AdminSetFactoryTreasuryRequest>,
+) -> Result<Json<AssetFactoryWriteResponse>, AuthError> {
+    Ok(Json(
+        asset::set_factory_treasury(&state, authenticated_user.user_id, payload).await?,
     ))
 }
 
@@ -461,5 +483,15 @@ pub async fn cancel_redemption(
     Ok(Json(
         asset::cancel_redemption(&state, authenticated_user.user_id, &asset_address, payload)
             .await?,
+    ))
+}
+
+pub async fn list_pending_redemptions(
+    State(state): State<AppState>,
+    Extension(_authenticated_user): Extension<AuthenticatedUser>,
+    Path(asset_address): Path<String>,
+) -> Result<Json<AssetPendingRedemptionsResponse>, AuthError> {
+    Ok(Json(
+        asset::list_pending_redemptions(&state, &asset_address).await?,
     ))
 }

@@ -96,6 +96,15 @@ impl IntoResponse for AuthError {
 
 impl From<sqlx::Error> for AuthError {
     fn from(value: sqlx::Error) -> Self {
-        Self::internal("database operation failed", value)
+        match value {
+            sqlx::Error::PoolTimedOut => {
+                tracing::error!(
+                    error = "sqlx pool timed out",
+                    "database connection pool exhausted"
+                );
+                Self::service_unavailable("database is busy; retry shortly")
+            }
+            other => Self::internal("database operation failed", other),
+        }
     }
 }

@@ -12,9 +12,10 @@ use crate::{
         get_asset_by_proposal, get_asset_by_slug, get_asset_detail, get_asset_detail_by_proposal,
         get_asset_detail_by_slug, get_asset_history, get_asset_history_by_proposal,
         get_asset_history_by_slug, get_asset_holder_state, get_asset_type, get_factory_status,
-        issue_asset, list_asset_types, list_assets, list_assets_by_type, pause_factory,
-        preview_purchase, preview_redemption, process_redemption, purchase_asset, redeem_asset,
-        register_asset_type, set_asset_catalog, set_asset_state, set_compliance_registry,
+        issue_asset, list_asset_types, list_assets, list_assets_by_type, list_pending_redemptions,
+        pause_factory, preview_purchase, preview_redemption, process_redemption, purchase_asset,
+        redeem_asset, register_asset_type, set_asset_catalog, set_asset_state,
+        set_compliance_registry, set_factory_compliance_registry, set_factory_treasury,
         set_metadata_hash, set_pricing, set_redemption_price, set_self_service_purchase_enabled,
         set_subscription_price, set_treasury, unpause_factory, unregister_asset_type,
     },
@@ -75,6 +76,15 @@ pub fn admin_router(state: AppState) -> Router<AppState> {
         )
         .route("/assets/factory/pause", post(pause_factory))
         .route("/assets/factory/unpause", post(unpause_factory))
+        .route(
+            "/assets/factory/compliance-registry",
+            put(set_factory_compliance_registry),
+        )
+        .route(
+            "/assets/factory/compliance-diamond",
+            put(set_factory_compliance_registry),
+        )
+        .route("/assets/factory/treasury", put(set_factory_treasury))
         .route("/assets", post(create_asset))
         .route("/assets/{asset_address}/issue", post(issue_asset))
         .route("/assets/{asset_address}/burn", post(burn_asset))
@@ -99,6 +109,10 @@ pub fn admin_router(state: AppState) -> Router<AppState> {
             "/assets/{asset_address}/compliance-registry",
             put(set_compliance_registry),
         )
+        .route(
+            "/assets/{asset_address}/compliance-diamond",
+            put(set_compliance_registry),
+        )
         .route("/assets/{asset_address}/treasury", put(set_treasury))
         .route(
             "/assets/{asset_address}/controller/disable",
@@ -111,6 +125,10 @@ pub fn admin_router(state: AppState) -> Router<AppState> {
         .route(
             "/assets/{asset_address}/redemptions/process",
             post(process_redemption),
+        )
+        .route(
+            "/assets/{asset_address}/redemptions/pending",
+            get(list_pending_redemptions),
         )
         .route_layer(axum_middleware::from_fn_with_state(state, require_admin))
 }

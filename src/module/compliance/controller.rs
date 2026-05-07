@@ -8,14 +8,17 @@ use crate::{
     module::{
         auth::error::AuthError,
         compliance::schema::{
-            AdminBatchUpsertComplianceInvestorsRequest, AdminComplianceAssetRulesUpsertResponse,
+            AdminBatchUpsertComplianceInvestorsRequest,
+            AdminBatchWhitelistComplianceInvestorsRequest, AdminComplianceAssetRulesUpsertResponse,
             AdminComplianceInvestorBatchUpsertResponse, AdminComplianceInvestorUpsertResponse,
             AdminComplianceJurisdictionRestrictionUpsertResponse,
-            AdminSetComplianceAssetRulesRequest, AdminSetComplianceJurisdictionRestrictionRequest,
-            AdminUpsertComplianceInvestorRequest, ComplianceAssetRulesResponse,
-            ComplianceCheckRedeemRequest, ComplianceCheckResponse, ComplianceCheckSubscribeRequest,
-            ComplianceCheckTransferRequest, ComplianceInvestorResponse,
-            ComplianceJurisdictionRestrictionResponse,
+            AdminSetComplianceAccessControlRequest, AdminSetComplianceAssetRulesRequest,
+            AdminSetComplianceInvestorStatusRequest,
+            AdminSetComplianceJurisdictionRestrictionRequest, AdminUpsertComplianceInvestorRequest,
+            ComplianceAccessControlResponse, ComplianceAccessControlWriteResponse,
+            ComplianceAssetRulesResponse, ComplianceCheckRedeemRequest, ComplianceCheckResponse,
+            ComplianceCheckSubscribeRequest, ComplianceCheckTransferRequest,
+            ComplianceInvestorResponse, ComplianceJurisdictionRestrictionResponse,
         },
     },
     service::{compliance, jwt::AuthenticatedUser},
@@ -39,6 +42,50 @@ pub async fn batch_upsert_investors(
 ) -> Result<Json<AdminComplianceInvestorBatchUpsertResponse>, AuthError> {
     Ok(Json(
         compliance::batch_upsert_investors(&state, authenticated_user.user_id, payload).await?,
+    ))
+}
+
+pub async fn batch_add_investors_to_whitelist(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Json(payload): Json<AdminBatchWhitelistComplianceInvestorsRequest>,
+) -> Result<Json<AdminComplianceInvestorBatchUpsertResponse>, AuthError> {
+    Ok(Json(
+        compliance::batch_add_investors_to_whitelist(&state, authenticated_user.user_id, payload)
+            .await?,
+    ))
+}
+
+pub async fn add_investor_to_whitelist(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Path(wallet): Path<String>,
+) -> Result<Json<AdminComplianceInvestorUpsertResponse>, AuthError> {
+    Ok(Json(
+        compliance::add_investor_to_whitelist(&state, authenticated_user.user_id, &wallet).await?,
+    ))
+}
+
+pub async fn remove_investor_from_whitelist(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Path(wallet): Path<String>,
+) -> Result<Json<AdminComplianceInvestorUpsertResponse>, AuthError> {
+    Ok(Json(
+        compliance::remove_investor_from_whitelist(&state, authenticated_user.user_id, &wallet)
+            .await?,
+    ))
+}
+
+pub async fn set_investor_status(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Path(wallet): Path<String>,
+    Json(payload): Json<AdminSetComplianceInvestorStatusRequest>,
+) -> Result<Json<AdminComplianceInvestorUpsertResponse>, AuthError> {
+    Ok(Json(
+        compliance::set_investor_status(&state, authenticated_user.user_id, &wallet, payload)
+            .await?,
     ))
 }
 
@@ -83,6 +130,22 @@ pub async fn get_asset_rules(
     Path(asset): Path<String>,
 ) -> Result<Json<ComplianceAssetRulesResponse>, AuthError> {
     Ok(Json(compliance::get_asset_rules(&state, &asset).await?))
+}
+
+pub async fn get_access_control(
+    State(state): State<AppState>,
+) -> Result<Json<ComplianceAccessControlResponse>, AuthError> {
+    Ok(Json(compliance::get_access_control(&state).await?))
+}
+
+pub async fn set_access_control(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Json(payload): Json<AdminSetComplianceAccessControlRequest>,
+) -> Result<Json<ComplianceAccessControlWriteResponse>, AuthError> {
+    Ok(Json(
+        compliance::set_access_control(&state, authenticated_user.user_id, payload).await?,
+    ))
 }
 
 pub async fn get_jurisdiction_restriction(

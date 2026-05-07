@@ -25,6 +25,12 @@ const ASSET_FACTORY_ABI_JSON: &str = r#"
   ], "outputs": [], "stateMutability": "nonpayable" },
   { "type": "function", "name": "pauseFactory", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
   { "type": "function", "name": "unpauseFactory", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "setComplianceRegistry", "inputs": [
+    { "name": "newRegistry", "type": "address", "internalType": "address" }
+  ], "outputs": [], "stateMutability": "nonpayable" },
+  { "type": "function", "name": "setTreasury", "inputs": [
+    { "name": "newTreasury", "type": "address", "internalType": "address" }
+  ], "outputs": [], "stateMutability": "nonpayable" },
   { "type": "function", "name": "isAssetTypeRegistered", "inputs": [
     { "name": "assetTypeId", "type": "bytes32", "internalType": "bytes32" }
   ], "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }], "stateMutability": "view" },

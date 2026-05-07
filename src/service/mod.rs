@@ -8,6 +8,7 @@ pub mod compliance;
 pub mod crypto;
 pub mod faucet;
 pub mod gasless;
+pub mod governance;
 pub mod jwt;
 pub mod liquidity;
 pub mod market;

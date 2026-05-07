@@ -18,17 +18,10 @@ use crate::{
 pub async fn faucet_usdc(
     State(state): State<AppState>,
     Extension(authenticated_user): Extension<AuthenticatedUser>,
-    payload: Option<Json<FaucetUsdcRequest>>,
+    Json(payload): Json<FaucetUsdcRequest>,
 ) -> Result<Json<FaucetUsdcResponse>, AuthError> {
-    let requested_amount = payload.and_then(|Json(value)| value.amount);
-
     Ok(Json(
-        faucet::request_usdc_faucet(
-            &state,
-            authenticated_user.user_id,
-            requested_amount.as_deref(),
-        )
-        .await?,
+        faucet::request_usdc_faucet(&state, authenticated_user.user_id, &payload.amount).await?,
     ))
 }
 

@@ -125,11 +125,23 @@ pub struct AdminSetAssetCatalogRequest {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AdminSetAssetComplianceRegistryRequest {
+    #[serde(alias = "compliance_diamond_address")]
     pub compliance_registry_address: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AdminSetAssetTreasuryRequest {
+    pub treasury_address: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AdminSetFactoryComplianceRegistryRequest {
+    #[serde(alias = "compliance_diamond_address")]
+    pub compliance_registry_address: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AdminSetFactoryTreasuryRequest {
     pub treasury_address: String,
 }
 
@@ -194,6 +206,7 @@ pub struct AssetFactoryStatusResponse {
     pub factory_address: String,
     pub access_control_address: String,
     pub compliance_registry_address: String,
+    pub compliance_diamond_address: String,
     pub treasury_address: String,
     pub paused: bool,
     pub total_assets_created: String,
@@ -250,6 +263,7 @@ pub struct AssetResponse {
     pub redemption_price_per_token: String,
     pub treasury_address: String,
     pub compliance_registry_address: String,
+    pub compliance_diamond_address: String,
     pub payment_token_address: String,
     pub metadata_hash: String,
     pub holder_count: String,
@@ -397,6 +411,7 @@ impl From<AssetRecord> for AssetResponse {
             price_per_token: record.price_per_token,
             redemption_price_per_token: record.redemption_price_per_token,
             treasury_address: record.treasury_address,
+            compliance_diamond_address: record.compliance_registry_address.clone(),
             compliance_registry_address: record.compliance_registry_address,
             payment_token_address: record.payment_token_address,
             metadata_hash: record.metadata_hash,
@@ -469,4 +484,24 @@ fn default_asset_slug(name: &str) -> String {
     } else {
         normalized
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PendingRedemptionItem {
+    pub user_id: String,
+    pub wallet_address: String,
+    pub email: Option<String>,
+    pub display_name: Option<String>,
+    pub pending_amount: String,
+    pub last_redemption_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AssetPendingRedemptionsResponse {
+    pub asset_address: String,
+    pub asset_name: String,
+    pub asset_symbol: String,
+    pub asset_image_url: Option<String>,
+    pub total_pending_redemptions: String,
+    pub pending_redemptions: Vec<PendingRedemptionItem>,
 }

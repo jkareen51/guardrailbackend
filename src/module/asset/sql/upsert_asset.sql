@@ -25,8 +25,9 @@ INSERT INTO assets (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
 )
-ON CONFLICT (asset_address) DO UPDATE
+ON CONFLICT (chain_id, proposal_id) DO UPDATE
 SET
+    asset_address = EXCLUDED.asset_address,
     proposal_id = EXCLUDED.proposal_id,
     asset_type_id = EXCLUDED.asset_type_id,
     name = EXCLUDED.name,

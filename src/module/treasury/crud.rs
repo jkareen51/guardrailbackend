@@ -34,6 +34,7 @@ pub async fn upsert_treasury_status(
     paused: bool,
     total_tracked_balance: &str,
     total_reserved_yield: &str,
+    total_reserved_redemptions: &str,
     updated_by_user_id: Option<Uuid>,
     last_tx_hash: Option<&str>,
 ) -> Result<TreasuryStatusRecord, AuthError> {
@@ -44,6 +45,7 @@ pub async fn upsert_treasury_status(
         .bind(paused)
         .bind(total_tracked_balance)
         .bind(total_reserved_yield)
+        .bind(total_reserved_redemptions)
         .bind(updated_by_user_id)
         .bind(last_tx_hash)
         .fetch_one(pool)
@@ -67,7 +69,9 @@ pub async fn upsert_treasury_asset(
     asset_address: &str,
     balance: &str,
     reserved_yield: &str,
+    reserved_redemptions: &str,
     available_liquidity: &str,
+    registered_asset_token: bool,
     updated_by_user_id: Option<Uuid>,
     last_tx_hash: Option<&str>,
 ) -> Result<TreasuryAssetRecord, AuthError> {
@@ -75,7 +79,9 @@ pub async fn upsert_treasury_asset(
         .bind(asset_address)
         .bind(balance)
         .bind(reserved_yield)
+        .bind(reserved_redemptions)
         .bind(available_liquidity)
+        .bind(registered_asset_token)
         .bind(updated_by_user_id)
         .bind(last_tx_hash)
         .fetch_one(pool)

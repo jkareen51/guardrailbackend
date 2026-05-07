@@ -5,6 +5,7 @@ SELECT
     paused,
     total_tracked_balance,
     total_reserved_yield,
+    total_reserved_redemptions,
     updated_by_user_id,
     last_tx_hash,
     created_at,

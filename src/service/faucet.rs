@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::Utc;
 use ethers_contract::Contract;
 use ethers_core::{
@@ -32,13 +32,21 @@ use crate::{
 pub async fn request_usdc_faucet(
     state: &AppState,
     user_id: Uuid,
-    requested_amount: Option<&str>,
+    requested_amount: &str,
 ) -> Result<FaucetUsdcResponse, AuthError> {
     let wallet = auth_crud::get_wallet_for_user(&state.db, user_id)
         .await?
         .ok_or_else(|| AuthError::forbidden("user wallet is not linked"))?;
     let recipient = normalize_wallet_address(&wallet.wallet_address)?;
-    let amount = resolve_faucet_amount(state, requested_amount).await?;
+    let amount = resolve_faucet_amount(&state.env, requested_amount).await?;
+
+    tracing::info!(
+        recipient = %recipient,
+        requested_amount,
+        payment_token_decimals = state.env.payment_token_decimals,
+        base_unit_amount = %amount,
+        "faucet request parsed"
+    );
 
     let tx_hash = send_usdc_mint_transaction(&state.env, &recipient, amount).await?;
     let record = crud::insert_faucet_request(
@@ -143,55 +151,21 @@ fn faucet_token_abi() -> Result<ethers_core::abi::Abi> {
         .parse(&[
             "function mint(address to, uint256 amount)",
             "function balanceOf(address account) view returns (uint256)",
-            "function decimals() view returns (uint8)",
         ])
         .map_err(Into::into)
 }
 
 async fn resolve_faucet_amount(
-    state: &AppState,
-    requested_amount: Option<&str>,
+    env: &Environment,
+    requested_amount: &str,
 ) -> Result<U256, AuthError> {
-    match requested_amount
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        Some(raw) => {
-            let decimals = read_token_decimals(&state.env).await?;
-            parse_display_amount(raw, decimals)
-        }
-        None => parse_base_unit_amount(&state.env.faucet_usdc_amount).map_err(|error| {
-            AuthError::internal("invalid FAUCET_USDC_AMOUNT configuration", error)
-        }),
-    }
-}
-
-async fn read_token_decimals(env: &Environment) -> Result<u8, AuthError> {
-    let contract = read_token_contract(env).await.map_err(|error| {
-        AuthError::internal("failed to build faucet token read contract", error)
-    })?;
-
-    contract
-        .method::<_, u8>("decimals", ())
-        .map_err(|error| AuthError::internal("failed to build decimals call", error))?
-        .call()
-        .await
-        .map_err(|error| AuthError::internal("failed to query decimals", error))
-}
-
-fn parse_base_unit_amount(raw: &str) -> Result<U256> {
-    let value = raw.trim();
-    if value.is_empty() {
-        anyhow::bail!("amount is required");
+    let raw = requested_amount.trim();
+    if raw.is_empty() {
+        return Err(AuthError::bad_request("amount is required"));
     }
 
-    let amount =
-        U256::from_dec_str(value).with_context(|| "amount must be a base-10 integer string")?;
-    if amount.is_zero() {
-        anyhow::bail!("amount must be greater than zero");
-    }
-
-    Ok(amount)
+    let decimals = env.payment_token_decimals;
+    parse_display_amount(raw, decimals)
 }
 
 fn parse_display_amount(raw: &str, decimals: u8) -> Result<U256, AuthError> {
@@ -231,4 +205,23 @@ fn decimal_power_of_ten(decimals: u8) -> Decimal {
         value *= Decimal::TEN;
     }
     value
+}
+
+#[cfg(test)]
+mod tests {
+    use ethers_core::types::U256;
+
+    use super::parse_display_amount;
+
+    #[test]
+    fn parses_whole_display_amount_using_payment_token_decimals() {
+        let amount = parse_display_amount("10", 6).expect("amount should parse");
+        assert_eq!(amount, U256::from(10_000_000u64));
+    }
+
+    #[test]
+    fn parses_fractional_display_amount_using_payment_token_decimals() {
+        let amount = parse_display_amount("100.25", 6).expect("amount should parse");
+        assert_eq!(amount, U256::from(100_250_000u64));
+    }
 }

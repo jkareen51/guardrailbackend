@@ -44,6 +44,7 @@ pub struct TreasuryStatusResponse {
     pub paused: bool,
     pub total_tracked_balance: String,
     pub total_reserved_yield: String,
+    pub total_reserved_redemptions: String,
     pub last_tx_hash: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
@@ -53,7 +54,9 @@ pub struct TreasuryAssetResponse {
     pub asset_address: String,
     pub balance: String,
     pub reserved_yield: String,
+    pub reserved_redemptions: String,
     pub available_liquidity: String,
+    pub registered_asset_token: bool,
     pub last_tx_hash: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
@@ -88,6 +91,7 @@ impl From<TreasuryStatusRecord> for TreasuryStatusResponse {
             paused: record.paused,
             total_tracked_balance: record.total_tracked_balance,
             total_reserved_yield: record.total_reserved_yield,
+            total_reserved_redemptions: record.total_reserved_redemptions,
             last_tx_hash: record.last_tx_hash,
             updated_at: record.updated_at,
         }
@@ -100,7 +104,9 @@ impl From<TreasuryAssetRecord> for TreasuryAssetResponse {
             asset_address: record.asset_address,
             balance: record.balance,
             reserved_yield: record.reserved_yield,
+            reserved_redemptions: record.reserved_redemptions,
             available_liquidity: record.available_liquidity,
+            registered_asset_token: record.registered_asset_token,
             last_tx_hash: record.last_tx_hash,
             updated_at: record.updated_at,
         }

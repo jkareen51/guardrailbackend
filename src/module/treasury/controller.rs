@@ -100,3 +100,13 @@ pub async fn unpause_treasury(
         treasury::unpause_treasury(&state, authenticated_user.user_id).await?,
     ))
 }
+
+pub async fn register_asset_token(
+    State(state): State<AppState>,
+    Extension(authenticated_user): Extension<AuthenticatedUser>,
+    Path(asset_address): Path<String>,
+) -> Result<Json<TreasuryAssetWriteResponse>, AuthError> {
+    Ok(Json(
+        treasury::register_asset_token(&state, authenticated_user.user_id, &asset_address).await?,
+    ))
+}
