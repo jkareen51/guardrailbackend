@@ -22,6 +22,9 @@ use crate::{
         admin_router as admin_asset_router, public_router as public_asset_router,
         user_router as user_asset_router,
     },
+    module::asset_request::route::{
+        admin_router as admin_asset_request_router, user_router as user_asset_request_router,
+    },
     module::auth::route::router as auth_router,
     module::compliance::route::{
         admin_router as admin_compliance_router, public_router as public_compliance_router,
@@ -53,6 +56,7 @@ pub fn build_router(state: AppState) -> Result<Router> {
             admin_router(state.clone())
                 .merge(admin_compliance_router(state.clone()))
                 .merge(admin_asset_router(state.clone()))
+                .merge(admin_asset_request_router(state.clone()))
                 .merge(admin_treasury_router(state.clone()))
                 .merge(admin_oracle_router(state.clone())),
         )
@@ -66,6 +70,7 @@ pub fn build_router(state: AppState) -> Result<Router> {
         .merge(me_market_router(state.clone()))
         .merge(public_treasury_router())
         .merge(public_oracle_router())
+        .merge(user_asset_request_router(state.clone()))
         .with_state(state)
         .layer(cors_layer)
         .layer(

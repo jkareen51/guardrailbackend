@@ -1,6 +1,7 @@
 pub mod aa;
 pub mod admin_auth;
 pub mod asset;
+pub mod asset_request;
 pub mod auth;
 pub mod browser;
 pub mod chain;

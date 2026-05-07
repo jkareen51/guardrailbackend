@@ -72,6 +72,10 @@ impl AuthError {
     pub fn is_conflict(&self) -> bool {
         self.status == StatusCode::CONFLICT
     }
+
+    pub fn is_not_found(&self) -> bool {
+        self.status == StatusCode::NOT_FOUND
+    }
 }
 
 impl std::fmt::Display for AuthError {

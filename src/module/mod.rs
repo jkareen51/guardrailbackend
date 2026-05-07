@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod asset;
+pub mod asset_request;
 pub mod auth;
 pub mod compliance;
 pub mod faucet;
