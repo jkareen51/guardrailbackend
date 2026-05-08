@@ -532,6 +532,19 @@ pub async fn get_asset(state: &AppState, asset_address: &str) -> Result<AssetRes
     }
 }
 
+pub async fn sync_asset_snapshot(
+    state: &AppState,
+    asset_address: &str,
+    actor_user_id: Option<Uuid>,
+    last_tx_hash: Option<&str>,
+) -> Result<AssetResponse, AuthError> {
+    let asset_address = parse_address(asset_address)?;
+
+    Ok(AssetResponse::from(
+        sync_asset(state, asset_address, None, actor_user_id, last_tx_hash).await?,
+    ))
+}
+
 pub async fn get_asset_detail(
     state: &AppState,
     asset_address: &str,

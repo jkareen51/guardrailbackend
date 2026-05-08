@@ -197,6 +197,14 @@ pub async fn submit_valuation_and_sync_pricing(
     let valuation =
         sync_valuation(state, asset_address, Some(actor_user_id), Some(&tx_hash)).await?;
 
+    asset_service::sync_asset_snapshot(
+        state,
+        &format_address(asset_address),
+        Some(actor_user_id),
+        Some(&tx_hash),
+    )
+    .await?;
+
     asset_crud::insert_asset_price_history(
         &state.db,
         &format_address(asset_address),

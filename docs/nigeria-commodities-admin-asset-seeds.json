@@ -1,0 +1,361 @@
+{
+  "generated_at": "2026-05-08",
+  "region": "Nigeria",
+  "purpose": "Web-researched seed payloads for commodities-related RWA admin onboarding.",
+  "admin_flow": [
+    {
+      "step": 1,
+      "endpoint": "POST /admin/assets/types",
+      "action": "Register shared asset types first."
+    },
+    {
+      "step": 2,
+      "endpoint": "POST /admin/assets",
+      "action": "Create the asset with catalog metadata and initial prices."
+    },
+    {
+      "step": 3,
+      "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+      "action": "Update subscription/redemption pricing after the asset is live or when exchange prices, inventory values, or valuation marks move."
+    }
+  ],
+  "global_notes": [
+    "Replace every <PLACEHOLDER> value before submitting.",
+    "All large numeric values must stay as strings.",
+    "proposal_id must be unique per chain.",
+    "implementation_address must point to a deployed asset implementation that matches the asset type.",
+    "Use your uploaded image gateway URL for image_url if you want cards in the catalog.",
+    "Keep self_service_purchase_enabled false until compliance, custody, and pricing controls are ready.",
+    "For warehouse-receipt-backed assets, keep receipt IDs, quantity, grade, moisture or assay data, warehouse location, and inspection timestamps in immutable metadata.",
+    "For export-commodity notes, store trade documents, off-take contracts, and shipment references before broad investor access.",
+    "Some template fields below are inferred from AFEX warehouse-receipt and trade-finance workflows and should be replaced with your actual deal documents.",
+    "Stablecoins are intentionally excluded from this file."
+  ],
+  "market_priority": {
+    "source_date": "2026-05-08",
+    "priority_buckets": {
+      "exchange_published_products": [
+        "AFEX Investment Limited SPV ABCP Programme",
+        "Robust International Commodities Limited CP Programme",
+        "NewGold ETF"
+      ],
+      "physical_commodity_templates": [
+        "Maize Warehouse Receipt Pool Template",
+        "Cocoa Export Trade Finance Note Template"
+      ]
+    },
+    "note": "For first launches, start with exchange-published or exchange-administered products before bespoke warehouse-receipt pools because the public reference data and governance are easier to verify."
+  },
+  "asset_types": [
+    {
+      "key": "ng_commodity_note",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_COMMODITY_NOTE",
+        "asset_type_name": "Nigeria Commodity-Backed Note",
+        "implementation_address": "<NG_COMMODITY_NOTE_IMPLEMENTATION_ADDRESS>"
+      }
+    },
+    {
+      "key": "ng_commodity_cp",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_COMMODITY_CP",
+        "asset_type_name": "Nigeria Commodity Commercial Paper",
+        "implementation_address": "<NG_COMMODITY_CP_IMPLEMENTATION_ADDRESS>"
+      }
+    },
+    {
+      "key": "ng_commodity_etf",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_COMMODITY_ETF",
+        "asset_type_name": "Nigeria Commodity Exchange Traded Product",
+        "implementation_address": "<NG_COMMODITY_ETF_IMPLEMENTATION_ADDRESS>"
+      }
+    },
+    {
+      "key": "ng_warehouse_receipt",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_WAREHOUSE_RECEIPT",
+        "asset_type_name": "Nigeria Warehouse Receipt Commodity Pool",
+        "implementation_address": "<NG_WAREHOUSE_RECEIPT_IMPLEMENTATION_ADDRESS>"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "key": "afex_abcp_programme",
+      "market_segment": "Commodity-backed note",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "23001",
+        "asset_type_id": "NG_COMMODITY_NOTE",
+        "name": "AFEX Investment Limited SPV ABCP Programme",
+        "symbol": "AFEXABCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_NOTE_PRICE>",
+        "redemption_price": "<SET_CURRENT_NOTE_REDEMPTION_VALUE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "afex-investment-limited-spv-abcp-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized exposure to AFEX's commodity-backed asset-backed commercial paper structure used to finance agro-processors against warehouse-receipt collateral.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "listing_date": "2023-10-09",
+        "programme_size_ngn": "100000000000",
+        "programme_tenor_note": "3-year programme",
+        "structure": "Commodity-backed ABCP",
+        "issuer_entity": "AFEX Investment Limited SPV",
+        "collateral_reference": "AFEX-issued warehouse receipts",
+        "previous_series_raised_ngn": "51000000000",
+        "instrument_note": "Senior secured debt instrument for agro-processors",
+        "pricing_method_note": "Use your latest issued series price or internal valuation reference when onboarding."
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_NOTE_PRICE>",
+          "redemption_price": "<SET_CURRENT_NOTE_REDEMPTION_VALUE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commodities",
+        "warehouse-receipt",
+        "abcp",
+        "ngn"
+      ],
+      "sources": [
+        "https://www.afex.africa/fr/blog/afex-lists-record-100-billion-naira-3-year-abcp-programme-on-the-exchange-1",
+        "https://www.afex.africa/blog/product-innovation-at-afex-developing-the-abcp-and-a-core-market-system-to-finance-the-commodities-market-in-africa",
+        "https://www.afex.africa/solutions/afex-investment-ltd"
+      ]
+    },
+    {
+      "key": "robust_international_commodities_cp_programme",
+      "market_segment": "Commodity commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "23002",
+        "asset_type_id": "NG_COMMODITY_CP",
+        "name": "Robust International Commodities Commercial Paper Programme",
+        "symbol": "ROBUSTCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "robust-international-commodities-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term paper linked to Robust International Commodities' programme for agricultural commodity trading and working-capital needs.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "30000000000",
+        "currency": "NGN",
+        "published_series_count": "21",
+        "latest_issue_number": "21",
+        "latest_issue_amount_ngn": "19250000000",
+        "latest_tenor_days": "268",
+        "latest_discount_percent": "24.58",
+        "latest_issue_date": "2025-02-25",
+        "latest_maturity_date": "2025-11-20",
+        "use_of_proceeds": "Short-term funding requirements",
+        "commodity_focus_note": "Cashew nuts, sesame seeds, rice, maize, and gum arabic"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commodities",
+        "commercial-paper",
+        "trading-house",
+        "ngn"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/robust-international-commodities-limited-n30-00bn-commercial-paper-programme/",
+        "https://fmdqgroup.com/robust-international-commodities-limited-registers-maiden-%E2%82%A620-00bn-commercial-paper-programme-on-fmdq-exchange/"
+      ]
+    },
+    {
+      "key": "newgold_etf",
+      "market_segment": "Commodity exchange traded fund",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "23003",
+        "asset_type_id": "NG_COMMODITY_ETF",
+        "name": "NewGold Exchange Traded Fund",
+        "symbol": "NEWGOLD",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_ETF_PRICE>",
+        "redemption_price": "<SET_CURRENT_ETF_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "newgold-exchange-traded-fund",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized exposure to a gold-linked ETF traded on NGX, useful as a listed commodity reference asset in the catalog.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "snapshot_date": "2026-03-04",
+        "listing_exchange": "NGX",
+        "official_closing_price": "82000.01",
+        "official_bid_price": "85050.00",
+        "official_ask_price": "82000.01",
+        "official_last_business_date": "2026-03-04",
+        "official_ytd_return_percent": "105.00",
+        "official_52_week_high": "96000.00",
+        "official_52_week_low": "1300.20",
+        "listing_history_note": "NGX states the ETF market in Nigeria launched in December 2011 with the cross-listing of NewGold ETF."
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_ETF_PRICE>",
+          "redemption_price": "<SET_CURRENT_ETF_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commodities",
+        "gold",
+        "etf",
+        "listed-product"
+      ],
+      "sources": [
+        "https://doclib.ngxgroup.com/DownloadsContent/Daily%20Official%20List%20-%20ETFs%20for%2004-03-2026.pdf",
+        "https://doclib.ngxgroup.com/NSE_Management_Speaches/CEO%27s%20Speech%20at%20the%20Facts%20Behind%20the%20Listing%20Presentation%20of%20SIAML%20Pension%20ETF%2040.pdf"
+      ]
+    },
+    {
+      "key": "maize_warehouse_receipt_pool_template",
+      "market_segment": "Physical commodity warehouse receipt",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "23004",
+        "asset_type_id": "NG_WAREHOUSE_RECEIPT",
+        "name": "Maize Warehouse Receipt Pool",
+        "symbol": "MAIZEWR1",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_INVENTORY_VALUE_PER_TOKEN>",
+        "redemption_price": "<SET_CURRENT_INVENTORY_VALUE_PER_TOKEN>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "maize-warehouse-receipt-pool",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Template for a tokenized maize inventory pool backed by warehouse receipts, grading records, and periodic mark-to-market valuation.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "source_date": "2026-05-08",
+        "commodity": "Maize",
+        "quantity_mt": "<SET_TOTAL_METRIC_TONS>",
+        "warehouse_receipt_ids": [
+          "<WAREHOUSE_RECEIPT_ID_1>",
+          "<WAREHOUSE_RECEIPT_ID_2>"
+        ],
+        "quality_grade": "<SET_APPROVED_GRADE>",
+        "moisture_percent": "<SET_TESTED_MOISTURE>",
+        "warehouse_location": "<STATE_CITY_AND_WAREHOUSE_SITE>",
+        "inspection_date": "<YYYY-MM-DD>",
+        "storage_operator": "<LICENSED_OR_APPROVED_WAREHOUSE_OPERATOR>",
+        "insurance_status": "<INSURED_OR_DISCLOSE_GAPS>",
+        "valuation_source": "<AFEX_OR_INTERNAL_MARK_TO_MARKET_SOURCE>",
+        "inventory_value_ngn": "<CURRENT_TOTAL_INVENTORY_VALUE>",
+        "haircut_percent": "<SET_COLLATERAL_HAIRCUT_IF_USED>",
+        "document_anchor_note": "Anchor warehouse receipts, grading certificate, inspection records, and insurance evidence before enabling transfers."
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_INVENTORY_VALUE_PER_TOKEN>",
+          "redemption_price": "<SET_CURRENT_INVENTORY_VALUE_PER_TOKEN>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commodities",
+        "warehouse-receipt",
+        "maize",
+        "inventory"
+      ],
+      "sources": [
+        "https://www.afex.africa/blog/product-innovation-at-afex-developing-the-abcp-and-a-core-market-system-to-finance-the-commodities-market-in-africa",
+        "https://www.afex.africa/fr/blog/afex-releases-2023-crop-production-report-forecasts-higher-prices-for-commodities-in-the-2023-2024-season"
+      ]
+    },
+    {
+      "key": "cocoa_export_trade_finance_note_template",
+      "market_segment": "Export commodity trade finance note",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "23005",
+        "asset_type_id": "NG_COMMODITY_NOTE",
+        "name": "Cocoa Export Trade Finance Note",
+        "symbol": "COCOATFN1",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_NOTE_PRICE>",
+        "redemption_price": "<SET_CURRENT_NOTE_REDEMPTION_VALUE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "cocoa-export-trade-finance-note",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Template for a tokenized export-finance note backed by cocoa trade flows, receivables, and shipment documentation.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "source_date": "2026-05-08",
+        "commodity": "Cocoa",
+        "trade_finance_structure": "Export-based receivables note",
+        "shipment_window": "<SET_EXPORT_WINDOW>",
+        "offtaker_name": "<SET_OFFTAKER_OR_BUYER>",
+        "contract_reference": "<SET_EXPORT_CONTRACT_ID>",
+        "quantity_mt": "<SET_TOTAL_METRIC_TONS>",
+        "quality_grade": "<SET_EXPORT_GRADE>",
+        "warehouse_receipt_or_bill_of_lading_reference": "<SET_PRIMARY_COLLATERAL_REFERENCE>",
+        "fx_denomination": "<USD_OR_NGN>",
+        "export_contract_value": "<SET_CONTRACT_VALUE>",
+        "hedge_or_insurance_status": "<SET_HEDGE_AND_INSURANCE_NOTE>",
+        "maturity_date": "<YYYY-MM-DD>",
+        "document_anchor_note": "Anchor export contract, invoice, shipment reference, collateral assignment, and payment waterfall before launch."
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_NOTE_PRICE>",
+          "redemption_price": "<SET_CURRENT_NOTE_REDEMPTION_VALUE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commodities",
+        "cocoa",
+        "trade-finance",
+        "export"
+      ],
+      "sources": [
+        "https://www.afex.africa/solutions/afex-investment-ltd",
+        "https://www.afex.africa/fr/blog/afex-releases-2023-crop-production-report-forecasts-higher-prices-for-commodities-in-the-2023-2024-season"
+      ]
+    }
+  ]
+}

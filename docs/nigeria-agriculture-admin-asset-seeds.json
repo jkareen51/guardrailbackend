@@ -1,0 +1,323 @@
+{
+  "generated_at": "2026-05-08",
+  "region": "Nigeria",
+  "purpose": "Web-researched seed payloads for agriculture-related RWA admin onboarding.",
+  "admin_flow": [
+    {
+      "step": 1,
+      "endpoint": "POST /admin/assets/types",
+      "action": "Register shared asset types first."
+    },
+    {
+      "step": 2,
+      "endpoint": "POST /admin/assets",
+      "action": "Create the asset with catalog metadata and initial prices."
+    },
+    {
+      "step": 3,
+      "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+      "action": "Update subscription/redemption pricing after the asset is live or when quoted issue terms or inventory values move."
+    }
+  ],
+  "global_notes": [
+    "Replace every <PLACEHOLDER> value before submitting.",
+    "All large numeric values must stay as strings.",
+    "proposal_id must be unique per chain.",
+    "implementation_address must point to a deployed asset implementation that matches the asset type.",
+    "Use your uploaded image gateway URL for image_url if you want cards in the catalog.",
+    "Keep self_service_purchase_enabled false until compliance, issuer onboarding, and pricing controls are ready.",
+    "For agribusiness debt assets, use the latest live or reference issue terms from the programme page when setting subscription and redemption pricing.",
+    "If you later add harvest-linked or inventory-backed agriculture assets, store warehouse receipt IDs, quantity, grade, and inspection timestamps in immutable metadata before broad distribution.",
+    "Stablecoins are intentionally excluded from this file."
+  ],
+  "market_priority": {
+    "source_date": "2026-05-08",
+    "priority_buckets": {
+      "agribusiness_cp_programmes": [
+        "Johnvents Industries Limited",
+        "Valency Agro Nigeria Limited",
+        "HillCrest Agro Nigeria Limited",
+        "Agro-Eknor International Limited",
+        "A.R.N Foods Limited"
+      ]
+    },
+    "note": "For first production launches, start with FMDQ-published agribusiness commercial paper programmes because issuer, tenor, issue amount, and maturity data are public and easier to verify than bespoke farm-level assets."
+  },
+  "asset_types": [
+    {
+      "key": "ng_agri_cp",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_AGRI_CP",
+        "asset_type_name": "Nigeria Agribusiness Commercial Paper",
+        "implementation_address": "<NG_AGRI_CP_IMPLEMENTATION_ADDRESS>"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "key": "johnvents_industries_cp_programme",
+      "market_segment": "Agribusiness commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "22001",
+        "asset_type_id": "NG_AGRI_CP",
+        "name": "Johnvents Industries Commercial Paper Programme",
+        "symbol": "JOHNCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "johnvents-industries-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term agribusiness paper linked to Johnvents Industries' FMDQ-registered commercial paper programme.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "100000000000",
+        "currency": "NGN",
+        "published_series_count": "24",
+        "latest_issue_number": "24",
+        "latest_issue_amount_ngn": "27540000000",
+        "latest_tenor_days": "364",
+        "latest_discount_percent": "19.69",
+        "latest_issue_date": "2025-12-30",
+        "latest_maturity_date": "2026-12-29",
+        "use_of_proceeds": "General corporate purposes"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "agriculture",
+        "commercial-paper",
+        "agribusiness",
+        "ngn"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/johnvents-industries-limited-n30-00bn-commercial-paper-programme/",
+        "https://fmdqgroup.com/90974-2/"
+      ]
+    },
+    {
+      "key": "valency_agro_cp_programme",
+      "market_segment": "Agribusiness commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "22002",
+        "asset_type_id": "NG_AGRI_CP",
+        "name": "Valency Agro Commercial Paper Programme",
+        "symbol": "VALCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "valency-agro-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term agribusiness paper linked to Valency Agro Nigeria's large FMDQ commercial paper programme.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "40000000000",
+        "currency": "NGN",
+        "published_series_count": "14",
+        "issuer_rating": "DataPro/BBB",
+        "latest_issue_number": "14",
+        "latest_issue_amount_ngn": "8100000000",
+        "latest_tenor_days": "360",
+        "latest_discount_percent": "19.89",
+        "latest_issue_date": "2025-09-01",
+        "latest_maturity_date": "2026-08-27",
+        "use_of_proceeds": "Short-term financing requirements"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "agriculture",
+        "commercial-paper",
+        "agribusiness",
+        "ngn"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/valency-agro-nigeria-limited-%E2%82%A640-00bn-commercial-paper-issuance-programme/",
+        "https://fmdqgroup.com/fmdq-exchange-admits-valency-agro-nigeria-limited-series-2-and-3-commercial-papers/"
+      ]
+    },
+    {
+      "key": "hillcrest_agro_cp_programme",
+      "market_segment": "Agribusiness commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "22003",
+        "asset_type_id": "NG_AGRI_CP",
+        "name": "HillCrest Agro Commercial Paper Programme",
+        "symbol": "HAGCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "hillcrest-agro-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term agribusiness paper linked to HillCrest Agro's commercial paper programme and rice-processing operations in Nigeria.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "10000000000",
+        "currency": "NGN",
+        "published_series_count": "14",
+        "issuer_rating": "DataPro/BBB",
+        "latest_issue_number": "14",
+        "latest_issue_amount_ngn": "1360000000",
+        "latest_tenor_days": "364",
+        "latest_discount_percent": "19.69",
+        "latest_issue_date": "2025-12-17",
+        "latest_maturity_date": "2026-12-16",
+        "use_of_proceeds": "Short-term financing requirements"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "agriculture",
+        "commercial-paper",
+        "rice",
+        "ngn"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/hillcrest-agro-nigeria-limited-%E2%82%A65-00bn-commercial-paper-issuance-programme/",
+        "https://fmdqgroup.com/fmdq-exchange-admits-the-hillcrest-agro-nigeria-limiteds-%E2%82%A65-00-billion-commercial-paper-programme-on-its-platform/"
+      ]
+    },
+    {
+      "key": "agro_eknor_cp_programme",
+      "market_segment": "Agribusiness commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "22004",
+        "asset_type_id": "NG_AGRI_CP",
+        "name": "Agro-Eknor Commercial Paper Programme",
+        "symbol": "AEKCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "agro-eknor-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term agribusiness paper linked to Agro-Eknor's FMDQ commercial paper programme for working capital and corporate use.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "5000000000",
+        "currency": "NGN",
+        "published_series_count": "5",
+        "issuer_rating": "DataPro/BBB",
+        "latest_issue_number": "5",
+        "latest_issue_amount_ngn": "1710000000",
+        "latest_tenor_days": "364",
+        "latest_discount_percent": "19.69",
+        "latest_issue_date": "2026-02-16",
+        "latest_maturity_date": "2027-02-15",
+        "use_of_proceeds": "General corporate purposes and working capital"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "agriculture",
+        "commercial-paper",
+        "export",
+        "ngn"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/agro-eknor-international-limited-%E2%82%A65-00bn-cp-programme/",
+        "https://fmdqgroup.com/agroeknor-secures-fmdq-approval-to-list-%E2%82%A61-65bn-commercial-papers-on-fmdq-exchange-boosting-agribusiness-financing-in-nigeria/"
+      ]
+    },
+    {
+      "key": "arn_foods_cp_programme",
+      "market_segment": "Agro-commodities commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "22005",
+        "asset_type_id": "NG_AGRI_CP",
+        "name": "A.R.N Foods Commercial Paper Programme",
+        "symbol": "ARNCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "arn-foods-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term agro-commodities paper linked to A.R.N Foods' programme supporting rice, maize, sesame, soybean, cocoa, and sorghum trading and processing.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "5000000000",
+        "currency": "NGN",
+        "business_sector": "Agro-Commodities Funding",
+        "published_issue_reference": "Series 1 published on issuer page",
+        "latest_issue_number": "1",
+        "latest_issue_amount_ngn": "3860000000",
+        "latest_tenor_days": "270",
+        "latest_discount_percent": "25.88",
+        "latest_issue_date": "2025-02-13",
+        "latest_maturity_date": "2025-11-10",
+        "rating_reference_note": "Corporate rating extension published by DataPro on issuer page"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "agriculture",
+        "commercial-paper",
+        "agro-commodities",
+        "ngn"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/issuer/a-r-n-foods-limited/",
+        "https://fmdqgroup.com/fmdq-exchange-strengthens-agro-sector-financing-with-a-r-n-foods-%E2%82%A63-86-billion-commercial-paper-quotation/"
+      ]
+    }
+  ]
+}
