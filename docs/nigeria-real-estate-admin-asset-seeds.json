@@ -1,0 +1,419 @@
+{
+  "generated_at": "2026-05-08",
+  "region": "Nigeria",
+  "purpose": "Web-researched seed payloads for real-estate-related RWA admin onboarding.",
+  "admin_flow": [
+    {
+      "step": 1,
+      "endpoint": "POST /admin/assets/types",
+      "action": "Register shared asset types first."
+    },
+    {
+      "step": 2,
+      "endpoint": "POST /admin/assets",
+      "action": "Create the asset with catalog metadata and initial prices."
+    },
+    {
+      "step": 3,
+      "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+      "action": "Update subscription/redemption pricing after the asset is live or when valuations move."
+    }
+  ],
+  "global_notes": [
+    "Replace every <PLACEHOLDER> value before submitting.",
+    "All large numeric values must stay as strings.",
+    "proposal_id must be unique per chain.",
+    "implementation_address must point to a deployed asset implementation that matches the asset type.",
+    "Use your uploaded image gateway URL for image_url if you want cards in the catalog.",
+    "Keep self_service_purchase_enabled false until compliance, custody, and valuation refresh are ready.",
+    "For single-property tokens, collect the title deed, valuation certificate, registry reference, and encumbrance check before onboarding.",
+    "Use metadata_hash or an anchored document package once legal and valuation files are stored on IPFS or another immutable document system.",
+    "For bespoke property tokens, keep transfer restrictions and KYC/AML controls in place before enabling broad self-service access."
+  ],
+  "market_priority": {
+    "source_date": "2026-05-08",
+    "priority_buckets": {
+      "listed_reits": [
+        "SFS Real Estate Investment Trust Fund",
+        "UH Real Estate Investment Trust"
+      ],
+      "developer_debt_programmes": [
+        "Veritasi Homes Commercial Paper Programme",
+        "Mixta Real Estate Commercial Paper Programme",
+        "Lekki Gardens Estate Commercial Paper Programme",
+        "Landwey Investment Commercial Paper Programme"
+      ],
+      "single_property_fractional": [
+        "Lagos Income Property SPV Template"
+      ]
+    },
+    "note": "For first production launches, start with exchange-published REITs and registered debt programmes because the issuer and market data are easier to verify than bespoke single-property deals."
+  },
+  "asset_types": [
+    {
+      "key": "ng_reit",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_REIT",
+        "asset_type_name": "Nigeria Real Estate Investment Trust",
+        "implementation_address": "<NG_REIT_IMPLEMENTATION_ADDRESS>"
+      }
+    },
+    {
+      "key": "ng_comm_paper",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_COMM_PAPER",
+        "asset_type_name": "Nigeria Commercial Paper",
+        "implementation_address": "<NG_COMM_PAPER_IMPLEMENTATION_ADDRESS>"
+      }
+    },
+    {
+      "key": "ng_property_spv",
+      "endpoint": "POST /admin/assets/types",
+      "payload": {
+        "asset_type_id": "NG_PROPERTY_SPV",
+        "asset_type_name": "Nigeria Tokenized Property SPV",
+        "implementation_address": "<NG_PROPERTY_SPV_IMPLEMENTATION_ADDRESS>"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "key": "sfs_reit",
+      "market_segment": "Listed real estate investment trust",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21001",
+        "asset_type_id": "NG_REIT",
+        "name": "SFS Real Estate Investment Trust Fund",
+        "symbol": "SFSREIT",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_REIT_PRICE>",
+        "redemption_price": "<SET_CURRENT_REIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "sfs-real-estate-investment-trust-fund",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized exposure to a listed Nigerian REIT focused on income-producing and appreciation-oriented real estate holdings.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "report_date": "2025-12-31",
+        "listing_exchange": "NGX",
+        "combined_property_value_ngn": "5512500000",
+        "reported_total_equity_ngn": "2989527000",
+        "portfolio_manager": "SFS Capital Nigeria Limited"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_REIT_PRICE>",
+          "redemption_price": "<SET_CURRENT_REIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "reit",
+        "real-estate",
+        "listed-fund",
+        "ngn"
+      ],
+      "sources": [
+        "https://doclib.ngxgroup.com/Financial_NewsDocs/45883_SFS_REAL_ESTATE_INVESTMENT_TRUST-_YEAR_END_-_FINANCIAL_STATEMENT_FOR_2025_FINANCIAL_STATEMENTS_JANUARY_2026.pdf"
+      ]
+    },
+    {
+      "key": "union_homes_reit",
+      "market_segment": "Listed real estate investment trust",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21002",
+        "asset_type_id": "NG_REIT",
+        "name": "UH Real Estate Investment Trust",
+        "symbol": "UHREIT",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_REIT_PRICE>",
+        "redemption_price": "<SET_CURRENT_REIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "uh-real-estate-investment-trust",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized exposure to UH REIT, a Nigerian close-ended REIT holding a predominantly real-estate and real-estate-related asset portfolio.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "report_date": "2025-12-31",
+        "listing_exchange": "NGX",
+        "listing_date": "2010-07-02",
+        "units_issued": "188127066",
+        "reported_unit_holders_fund_ngn": "27946904000",
+        "reported_total_assets_ngn": "29178353000",
+        "reported_investment_properties_ngn": "26214974000",
+        "nav_per_unit_ngn": "148.55",
+        "real_estate_allocation_percent_of_total_assets": "94.52"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_REIT_PRICE>",
+          "redemption_price": "<SET_CURRENT_REIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "reit",
+        "real-estate",
+        "listed-fund",
+        "ngn"
+      ],
+      "sources": [
+        "https://uhreitng.com/pdf/relations/UH-REIT-2025-Annual-Report.pdf"
+      ]
+    },
+    {
+      "key": "veritasi_homes_cp_programme",
+      "market_segment": "Corporate commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21003",
+        "asset_type_id": "NG_COMM_PAPER",
+        "name": "Veritasi Homes Commercial Paper Programme",
+        "symbol": "VHCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "veritasi-homes-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term paper linked to Veritasi Homes' registered commercial paper programme for real-estate development funding and working capital.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "20000000000",
+        "series_count": "8",
+        "issuer_rating": "DataPro/BBB",
+        "latest_published_issue": "8 Tranche C",
+        "latest_issue_amount_ngn": "120000000",
+        "latest_issue_date": "2024-11-27",
+        "latest_maturity_date": "2025-08-24"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commercial-paper",
+        "real-estate",
+        "ngn",
+        "short-duration"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/veritasi-homes-properties-limited-n10-00bn-commercial-paper-programme/",
+        "https://fmdqgroup.com/veritasi-homes-properties-limited-taps-the-commercial-paper-market-registers-%E2%82%A610-00-billion-commercial-paper-programme-on-fmdq-exchange/"
+      ]
+    },
+    {
+      "key": "mixta_real_estate_cp_programme",
+      "market_segment": "Corporate commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21004",
+        "asset_type_id": "NG_COMM_PAPER",
+        "name": "Mixta Real Estate Commercial Paper Programme",
+        "symbol": "MIXCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "mixta-real-estate-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term paper linked to Mixta Real Estate's commercial paper programme, with proceeds disclosed for refinancing existing facilities.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "20000000000",
+        "currency": "NGN",
+        "face_value_ngn": "1000",
+        "published_series_count": "46",
+        "use_of_proceeds": "Refinancing of existing facilities"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commercial-paper",
+        "real-estate",
+        "ngn",
+        "short-duration"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/mixta-real-estate-plc-%E2%82%A620-00bn-commercial-paper-issuance-programme/"
+      ]
+    },
+    {
+      "key": "lekki_gardens_cp_programme",
+      "market_segment": "Corporate commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21005",
+        "asset_type_id": "NG_COMM_PAPER",
+        "name": "Lekki Gardens Estate Commercial Paper Programme",
+        "symbol": "LGECP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "lekki-gardens-estate-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term paper linked to Lekki Gardens Estate's registered commercial paper programme for corporate purposes and working capital.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "25000000000",
+        "currency": "NGN",
+        "published_series_count": "4",
+        "programme_status": "Registered",
+        "use_of_proceeds": "General corporate purposes and working capital"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commercial-paper",
+        "real-estate",
+        "ngn",
+        "short-duration"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/lekki-gardens-estate-limited-n25-00bn-commercial-paper-programme/"
+      ]
+    },
+    {
+      "key": "landwey_cp_programme",
+      "market_segment": "Corporate commercial paper",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21006",
+        "asset_type_id": "NG_COMM_PAPER",
+        "name": "Landwey Investment Commercial Paper Programme",
+        "symbol": "LANDCP",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_CP_PRICE>",
+        "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "landwey-investment-commercial-paper-programme",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Tokenized short-term paper linked to Landwey Investment's registered commercial paper programme for working-capital funding.",
+        "featured": false,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "programme_size_ngn": "20000000000",
+        "currency": "NGN",
+        "programme_status": "Registered",
+        "use_of_proceeds": "Working capital"
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_CP_PRICE>",
+          "redemption_price": "<SET_CP_PAR_OR_EXIT_PRICE>"
+        }
+      },
+      "suggested_internal_tags": [
+        "commercial-paper",
+        "real-estate",
+        "ngn",
+        "short-duration"
+      ],
+      "sources": [
+        "https://fmdqgroup.com/exchange/programme/landwey-investment-limited-%E2%82%A620-00bn-commercial-paper-issuance-programme/"
+      ]
+    },
+    {
+      "key": "lagos_income_property_spv_template",
+      "market_segment": "Fractional income-producing property",
+      "admin_create_endpoint": "POST /admin/assets",
+      "create_payload": {
+        "proposal_id": "21007",
+        "asset_type_id": "NG_PROPERTY_SPV",
+        "name": "Lagos Income Property SPV",
+        "symbol": "LAGPROP1",
+        "max_supply": "<SET_TOKEN_CAP>",
+        "subscription_price": "<SET_CURRENT_NAV_PER_TOKEN>",
+        "redemption_price": "<SET_CURRENT_NAV_PER_TOKEN>",
+        "self_service_purchase_enabled": false,
+        "metadata_hash": null,
+        "slug": "lagos-income-property-spv",
+        "image_url": "<UPLOAD_IMAGE_GATEWAY_URL>",
+        "summary": "Template for a tokenized Nigerian income-producing property where investors hold fractional exposure to a ring-fenced property SPV.",
+        "featured": true,
+        "visible": true,
+        "searchable": true
+      },
+      "market_snapshot": {
+        "source_date": "2026-05-08",
+        "property_type": "<RESIDENTIAL_OFFICE_RETAIL_OR_MIXED_USE>",
+        "property_location": "<CITY_STATE_OR_FULL_ADDRESS>",
+        "registry_reference": "<LAND_REGISTRY_OR_PARCEL_REFERENCE>",
+        "valuation_date": "<YYYY-MM-DD>",
+        "property_valuation_ngn": "<CERTIFIED_APPRAISED_VALUE>",
+        "token_valuation_basis": "<NAV_OR_PER_TOKEN_VALUE_METHOD>",
+        "legal_title_status": "<CLEAR_TITLE_OR_DISCLOSE_ISSUES>",
+        "encumbrance_status": "<NONE_OR_DISCLOSE_LIENS_MORTGAGES>",
+        "occupancy_or_income_note": "<SET_OCCUPANCY_RATE_OR_RENTAL_YIELD>",
+        "document_anchor_note": "Anchor the title deed hash, valuation certificate hash, and signed verifier package before enabling trading."
+      },
+      "pricing_update_template": {
+        "endpoint": "PUT /admin/assets/{asset_address}/pricing",
+        "asset_address": "<FILL_AFTER_CREATION>",
+        "payload": {
+          "subscription_price": "<SET_CURRENT_NAV_PER_TOKEN>",
+          "redemption_price": "<SET_CURRENT_NAV_PER_TOKEN>"
+        }
+      },
+      "suggested_internal_tags": [
+        "tokenized-property",
+        "real-estate",
+        "spv",
+        "ngn"
+      ],
+      "sources": [
+        "https://docs.reallayer.com/developers/tokenizing-real-world-assets",
+        "https://docs.blocksquare.io/infrastructure/tokenization-protocol/bspt-tokens",
+        "https://docs.fact.finance/features/por-re/"
+      ]
+    }
+  ]
+}
